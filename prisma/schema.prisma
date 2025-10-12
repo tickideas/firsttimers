@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [pgcrypto(), citext(), pg_trgm()]
+}
+
+enum TenantMode {
+  ZONE
+  STANDALONE
+}
+
+enum ServiceEventType {
+  SUNDAY
+  MIDWEEK
+  SPECIAL
+  OTHER
+}
+
+enum PipelineStage {
+  NEW
+  VERIFIED
+  CONTACTED
+  IN_PROGRESS
+  FOUNDATION_ENROLLED
+  FOUNDATION_IN_CLASS
+  FOUNDATION_COMPLETED
+  DEPARTMENT_ONBOARDING
+  ACTIVE_MEMBER
+  DORMANT
+}
+
+model Tenant {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  mode        TenantMode  @default(ZONE)
+  settings    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  churches    Church[]
+  groups      Group[]
+  users       User[]
+  userRoles   UserRole[]
+  forms       Form[]
+  firstTimers FirstTimer[]
+  courses     FoundationCourse[]
+  departments Department[]
+  followUps   FollowUp[]
+  notifications Notification[]
+  auditLogs   AuditLog[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String?  @unique
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  churches  Church[]
+
+  @@index([tenantId])
+}
+
+model Church {
+  id         String   @id @default(cuid())
+  tenantId   String
+  groupId    String?
+  name       String
+  slug       String
+  settings   Json?
+  address    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group      Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  forms      Form[]
+  events     ServiceEvent[]
+  firstTimers FirstTimer[]
+  classes    FoundationClass[]
+  departments Department[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([groupId])
+}
+
+model User {
+  id            String      @id @default(cuid())
+  tenantId      String
+  email         String      @db.Citext
+  phoneE164     String?
+  passwordHash  String?
+  name          String
+  isActive      Boolean     @default(true)
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments   UserRole[]
+  followUps     FollowUp[]  @relation("FollowUpAssignedTo")
+  auditLogs     AuditLog[]  @relation("AuditActor")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Role {
+  id    String @id @default(cuid())
+  key   String @unique
+  label String
+  assignments UserRole[]
+}
+
+model UserRole {
+  id       String  @id @default(cuid())
+  userId   String
+  roleId   String
+  tenantId String
+  scope    String   // zone|group|church
+  scopeId  String?
+  createdAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([scope, scopeId])
+  @@unique([userId, roleId, scope, scopeId])
+}
+
+model ServiceEvent {
+  id         String           @id @default(cuid())
+  churchId   String
+  startsAt   DateTime
+  type       ServiceEventType @default(SUNDAY)
+  name       String?
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  church     Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  firstTimers FirstTimer[]
+
+  @@index([churchId, startsAt])
+}
+
+model Form {
+  id         String   @id @default(cuid())
+  tenantId   String
+  churchId   String
+  version    Int      @default(1)
+  schemaJson Json
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  church     Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  submissions FormSubmission[]
+
+  @@index([tenantId])
+  @@index([churchId])
+}
+
+model FormSubmission {
+  id         String   @id @default(cuid())
+  formId     String
+  firstTimerId String?
+  payload    Json
+  meta       Json?
+  createdAt  DateTime @default(now())
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  firstTimer FirstTimer? @relation(fields: [firstTimerId], references: [id], onDelete: SetNull)
+
+  @@index([formId])
+  @@index([firstTimerId])
+}
+
+model FirstTimer {
+  id             String        @id @default(cuid())
+  tenantId       String
+  churchId       String
+  serviceEventId String?
+  fullName       String
+  email          String?       @db.Citext
+  phoneE164      String?
+  consent        Boolean       @default(true)
+  source         String        @default("form")
+  status         PipelineStage @default(NEW)
+  notes          Json?
+  tags           String[]      @default([])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  church         Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  serviceEvent   ServiceEvent? @relation(fields: [serviceEventId], references: [id], onDelete: SetNull)
+  followUps      FollowUp[]
+  foundationEnrollments FoundationEnrollment[]
+  departmentEnrollments DepartmentEnrollment[]
+  submissions    FormSubmission[]
+
+  @@index([tenantId])
+  @@index([churchId])
+  @@index([serviceEventId])
+  @@index([tenantId, status])
+  @@index([tenantId, phoneE164])
+  @@index([tenantId, email])
+}
+
+model FollowUp {
+  id           String        @id @default(cuid())
+  tenantId     String
+  firstTimerId String
+  assignedToId String?
+  currentStage PipelineStage @default(NEW)
+  priority     String        @default("normal")
+  dueAt        DateTime?
+  notes        Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firstTimer   FirstTimer    @relation(fields: [firstTimerId], references: [id], onDelete: Cascade)
+  assignedTo   User?         @relation("FollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  contactAttempts ContactAttempt[]
+
+  @@index([tenantId])
+  @@index([firstTimerId])
+  @@index([assignedToId])
+}
+
+model ContactAttempt {
+  id           String   @id @default(cuid())
+  followUpId   String
+  channel      String
+  outcome      String
+  notes        String?
+  nextActionAt DateTime?
+  createdAt    DateTime @default(now())
+  followUp     FollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+
+  @@index([followUpId])
+}
+
+model FoundationCourse {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes   FoundationClass[]
+
+  @@index([tenantId])
+}
+
+model FoundationClass {
+  id        String   @id @default(cuid())
+  churchId  String
+  courseId  String
+  schedule  Json?
+  startsAt  DateTime?
+  endsAt    DateTime?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  course    FoundationCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollments FoundationEnrollment[]
+
+  @@index([churchId])
+  @@index([courseId])
+}
+
+model FoundationEnrollment {
+  id           String   @id @default(cuid())
+  firstTimerId String
+  classId      String
+  status       String   @default("ENROLLED")
+  attendance   Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  firstTimer   FirstTimer @relation(fields: [firstTimerId], references: [id], onDelete: Cascade)
+  class        FoundationClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
+  @@index([firstTimerId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  tenantId  String
+  churchId  String
+  name      String
+  description String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  enrollments DepartmentEnrollment[]
+
+  @@unique([churchId, name])
+  @@index([tenantId])
+}
+
+model DepartmentEnrollment {
+  id           String   @id @default(cuid())
+  firstTimerId String
+  departmentId String
+  status       String   @default("INTERESTED")
+  notes        Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  firstTimer   FirstTimer @relation(fields: [firstTimerId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@index([firstTimerId])
+  @@index([departmentId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  target    String
+  type      String
+  payload   Json
+  status    String   @default("PENDING")
+  scheduledAt DateTime?
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([actorId])
+  @@index([entity, entityId])
+}

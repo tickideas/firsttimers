@@ -1,0 +1,225 @@
+# No version needed for latest compose format
+
+services:
+  # Database
+  postgres:
+    image: postgres:17
+    container_name: firsttimers_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-firsttimers}
+      POSTGRES_USER: ${POSTGRES_USER:-firsttimers_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-default_password}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - firsttimers_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firsttimers_user -d firsttimers"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: firsttimers_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - firsttimers_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    container_name: firsttimers_api
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD:-default_password}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret}
+      BREVO_API_KEY: ${BREVO_API_KEY:-no_brevo_key}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev_encryption_key}
+      RLS_SUPER_ROLE: ${RLS_SUPER_ROLE:-postgres}
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    networks:
+      - firsttimers_network
+    command: ["bun", "--watch", "src/index.ts"]
+    profiles:
+      - dev
+
+  # API Service (Production)
+  api-prod:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: runner
+    container_name: firsttimers_api_prod
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: prod_jwt_secret_key_change_in_production
+      BREVO_API_KEY: prod_brevo_key
+      ENCRYPTION_KEY: prod_encryption_key_change_in_production
+      RLS_SUPER_ROLE: postgres
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - firsttimers_network
+    profiles:
+      - prod
+
+  # Worker Service
+  worker:
+    build:
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
+      target: development
+    container_name: firsttimers_worker
+    environment:
+      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_key_change_in_production
+      BREVO_API_KEY: dev_brevo_key
+      ENCRYPTION_KEY: dev_encryption_key_change_in_production
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    networks:
+      - firsttimers_network
+    command: ["bun", "--watch", "src/index.ts"]
+    profiles:
+      - dev
+
+  # Worker Service (Production)
+  worker-prod:
+    build:
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
+      target: runner
+    container_name: firsttimers_worker_prod
+    environment:
+      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: prod_jwt_secret_key_change_in_production
+      BREVO_API_KEY: prod_brevo_key
+      ENCRYPTION_KEY: prod_encryption_key_change_in_production
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - firsttimers_network
+    profiles:
+      - prod
+
+  # Web Service
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: development
+    container_name: firsttimers_web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+    depends_on:
+      api:
+        condition: service_started
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - firsttimers_network
+    command: ["next", "dev", "-p", "3000"]
+    profiles:
+      - dev
+
+  # Web Service (Production)
+  web-prod:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: runner
+    container_name: firsttimers_web_prod
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:3001
+      NODE_ENV: production
+    depends_on:
+      api-prod:
+        condition: service_started
+    networks:
+      - firsttimers_network
+    profiles:
+      - prod
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: firsttimers_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@firsttimers.org
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-default_password}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:5050"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - firsttimers_network
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  firsttimers_network:
+    driver: bridge
