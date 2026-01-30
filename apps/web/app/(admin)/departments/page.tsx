@@ -49,6 +49,7 @@ export default function DepartmentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDepartments = useCallback(async () => {
     if (!token) return;
@@ -75,11 +76,12 @@ export default function DepartmentsPage() {
     // Get churchId from existing departments or use empty string
     const churchId = departments[0]?.church?.id;
     if (!churchId) {
-      console.error("No church available to create department");
+      setError("No church available. Please ensure you have access to a church before creating departments.");
       return;
     }
 
     setIsSubmitting(true);
+    setError(null);
     try {
       const response = await api.post<Department>("/api/departments", {
         name: form.name,
@@ -90,8 +92,9 @@ export default function DepartmentsPage() {
       setDepartments([...departments, response]);
       setModalOpen(false);
       setForm({ name: "", description: "" });
-    } catch (error) {
-      console.error("Failed to create department:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create department";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -103,8 +106,9 @@ export default function DepartmentsPage() {
     try {
       await api.delete(`/api/departments/${id}`, { token });
       setDepartments(departments.filter((d) => d.id !== id));
-    } catch (error) {
-      console.error("Failed to delete department:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete department";
+      setError(message);
     }
   };
 
@@ -128,6 +132,11 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
@@ -221,11 +230,19 @@ export default function DepartmentsPage() {
       )}
 
       {/* Create Department Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(open) => {
+        setModalOpen(open);
+        if (!open) setError(null);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Department</DialogTitle>
           </DialogHeader>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Department Name</label>

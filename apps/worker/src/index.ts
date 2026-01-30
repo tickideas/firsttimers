@@ -154,17 +154,33 @@ const sendEmail = async (to: string, subject: string, message: string) => {
   return emailProvider.send(to, subject, message);
 };
 
-const processVerificationNotification = async (payload: any) => {
-  const { code, firstTimerId, channel, expiresAt } = payload;
-  
+const verificationNotificationSchema = z.object({
+  code: z.string(),
+  firstTimerId: z.string(),
+  channel: z.enum(['email', 'sms']),
+  expiresAt: z.string().datetime(),
+  target: z.string(),
+});
+
+type VerificationNotificationPayload = z.infer<typeof verificationNotificationSchema>;
+
+const processVerificationNotification = async (payload: unknown) => {
+  const parsed = verificationNotificationSchema.safeParse(payload);
+  if (!parsed.success) {
+    logger.error({ errors: parsed.error.errors }, 'Invalid verification notification payload');
+    throw new Error('Invalid payload');
+  }
+
+  const { code, channel, target } = parsed.data;
+
   let message = `Your verification code is: ${code}. `;
   message += `This code will expire in 10 minutes. `;
   message += `Please do not share this code with anyone.`;
 
   if (channel === 'email') {
-    await sendEmail(payload.target, 'Verify your contact information', message);
+    await sendEmail(target, 'Verify your contact information', message);
   } else {
-    await sendSms(payload.target, message);
+    await sendSms(target, message);
   }
 };
 

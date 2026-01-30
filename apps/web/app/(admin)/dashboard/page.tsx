@@ -59,26 +59,25 @@ export default function DashboardPage() {
       if (!token) return;
 
       try {
-        // Fetch stats from dedicated endpoint (server-side aggregation)
-        const statsResponse = await api.get<{
-          totalFirstTimers: number;
-          newThisWeek: number;
-          pendingFollowUps: number;
-          foundationEnrolled: number;
-        }>("/api/first-timers/stats", { token });
+        // Fetch stats and recent first-timers in parallel
+        const [statsResponse, recentResponse] = await Promise.all([
+          api.get<{
+            totalFirstTimers: number;
+            newThisWeek: number;
+            pendingFollowUps: number;
+            foundationEnrolled: number;
+          }>("/api/first-timers/stats", { token }),
+          api.get<{
+            firstTimers: Array<{
+              id: string;
+              fullName: string;
+              status: string;
+              createdAt: string;
+            }>;
+          }>("/api/first-timers?limit=5", { token }),
+        ]);
 
         setStats(statsResponse);
-
-        // Fetch recent first-timers for display
-        const recentResponse = await api.get<{
-          firstTimers: Array<{
-            id: string;
-            fullName: string;
-            status: string;
-            createdAt: string;
-          }>;
-        }>("/api/first-timers?limit=5", { token });
-
         setRecentFirstTimers(recentResponse.firstTimers || []);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -125,13 +124,11 @@ export default function DashboardPage() {
           title="Total First Timers"
           value={stats.totalFirstTimers}
           icon={Users}
-          trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
           title="New This Week"
           value={stats.newThisWeek}
           icon={UserPlus}
-          trend={{ value: 8, isPositive: true }}
         />
         <StatsCard
           title="Pending Follow-Ups"
@@ -143,7 +140,6 @@ export default function DashboardPage() {
           title="Foundation Enrolled"
           value={stats.foundationEnrolled}
           icon={GraduationCap}
-          trend={{ value: 5, isPositive: true }}
         />
       </div>
 
@@ -211,9 +207,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {[
                 { stage: "New", count: stats.pendingFollowUps, color: "bg-blue-500" },
-                { stage: "In Progress", count: 12, color: "bg-yellow-500" },
                 { stage: "Foundation", count: stats.foundationEnrolled, color: "bg-green-500" },
-                { stage: "Active Members", count: 45, color: "bg-indigo-500" },
               ].map((item) => (
                 <div key={item.stage} className="space-y-1">
                   <div className="flex justify-between text-sm">

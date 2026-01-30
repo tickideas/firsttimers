@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import type { Prisma } from '@prisma/client';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
+
+// Helper to convert Zod output to Prisma's expected Json type
+const toPrismaJson = (value: unknown): Prisma.InputJsonValue => {
+  return value as Prisma.InputJsonValue;
+};
 
 const departmentSchema = z.object({
   name: z.string().min(1).max(100),
@@ -101,7 +107,10 @@ export function registerDepartmentRoutes(app: App) {
 
       const department = await prisma.department.create({
         data: {
-          ...data,
+          name: data.name,
+          description: data.description,
+          churchId: data.churchId,
+          metadata: data.metadata ? toPrismaJson(data.metadata) : undefined,
           tenantId,
         },
         include: {
@@ -129,7 +138,11 @@ export function registerDepartmentRoutes(app: App) {
 
       const result = await prisma.department.updateMany({
         where: { id, tenantId },
-        data,
+        data: {
+          name: data.name,
+          description: data.description,
+          metadata: data.metadata ? toPrismaJson(data.metadata) : undefined,
+        },
       });
 
       if (result.count === 0) {
@@ -229,7 +242,7 @@ export function registerDepartmentRoutes(app: App) {
           firstTimerId: data.firstTimerId,
           departmentId: data.departmentId,
           status: data.status || 'INTERESTED',
-          notes: data.notes,
+          notes: data.notes ? toPrismaJson(data.notes) : undefined,
         },
         include: {
           firstTimer: { select: { fullName: true } },
@@ -256,7 +269,10 @@ export function registerDepartmentRoutes(app: App) {
 
       const enrollment = await prisma.departmentEnrollment.update({
         where: { id },
-        data,
+        data: {
+          status: data.status,
+          notes: data.notes ? toPrismaJson(data.notes) : undefined,
+        },
       });
 
       // Update first timer status if becoming active

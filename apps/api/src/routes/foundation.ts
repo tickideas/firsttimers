@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import type { Prisma } from '@prisma/client';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
+
+// Helper to convert Zod output to Prisma's expected Json type
+const toPrismaJson = (value: unknown): Prisma.InputJsonValue => {
+  return value as Prisma.InputJsonValue;
+};
 
 const courseSchema = z.object({
   name: z.string().min(1).max(200),
@@ -219,7 +225,7 @@ export function registerFoundationRoutes(app: App) {
           churchId: data.churchId,
           startsAt: data.startsAt ? new Date(data.startsAt) : null,
           endsAt: data.endsAt ? new Date(data.endsAt) : null,
-          schedule: data.schedule,
+          schedule: data.schedule ? toPrismaJson(data.schedule) : undefined,
         },
         include: {
           course: { select: { name: true } },
@@ -324,7 +330,10 @@ export function registerFoundationRoutes(app: App) {
 
       const enrollment = await prisma.foundationEnrollment.update({
         where: { id },
-        data,
+        data: {
+          status: data.status,
+          attendance: data.attendance ? toPrismaJson(data.attendance) : undefined,
+        },
       });
 
       // Update first timer status based on enrollment status
