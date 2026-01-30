@@ -47,8 +47,11 @@ yarn-error.log*
 *.sqlite3
 
 # Turbo cache
-.turbo/cache
+.turbo
 
 # Bun cache
 .bun
 .cache
+
+# OMC state
+.omc
