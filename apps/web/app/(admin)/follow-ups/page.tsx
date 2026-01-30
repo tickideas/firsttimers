@@ -90,9 +90,9 @@ export default function FollowUpsPage() {
 
     try {
       const response = await api.get<{
-        data: FollowUp[];
+        followUps: FollowUp[];
       }>("/api/follow-ups?limit=100", { token });
-      setFollowUps(response.data || []);
+      setFollowUps(response.followUps || []);
     } catch (error) {
       console.error("Failed to fetch follow-ups:", error);
     } finally {

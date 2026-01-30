@@ -61,17 +61,17 @@ export default function DashboardPage() {
       try {
         // Fetch first-timers for stats
         const response = await api.get<{
-          data: Array<{
+          firstTimers: Array<{
             id: string;
             fullName: string;
             status: string;
             createdAt: string;
           }>;
-          meta: { total: number };
+          pagination: { total: number };
         }>("/api/first-timers?limit=10", { token });
 
-        const firstTimers = response.data || [];
-        const total = response.meta?.total || 0;
+        const firstTimers = response.firstTimers || [];
+        const total = response.pagination?.total || 0;
 
         // Calculate stats
         const now = new Date();

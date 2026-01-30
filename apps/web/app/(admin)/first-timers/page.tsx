@@ -107,13 +107,13 @@ export default function FirstTimersPage() {
       }
 
       const response = await api.get<{
-        data: FirstTimer[];
-        meta: { total: number; page: number; limit: number };
+        firstTimers: FirstTimer[];
+        pagination: { total: number; page: number; limit: number; pages: number };
       }>(`/api/first-timers?${params}`, { token });
 
-      setFirstTimers(response.data || []);
-      setTotal(response.meta?.total || 0);
-      setTotalPages(Math.ceil((response.meta?.total || 0) / limit));
+      setFirstTimers(response.firstTimers || []);
+      setTotal(response.pagination?.total || 0);
+      setTotalPages(response.pagination?.pages || 1);
     } catch (error) {
       console.error("Failed to fetch first timers:", error);
     } finally {

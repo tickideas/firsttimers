@@ -123,11 +123,11 @@ export default function FirstTimerDetailPage() {
     if (!token || !params.id) return;
 
     try {
-      const response = await api.get<FirstTimerDetail>(
+      const response = await api.get<{ firstTimer: FirstTimerDetail }>(
         `/api/first-timers/${params.id}`,
         { token }
       );
-      setFirstTimer(response);
+      setFirstTimer(response.firstTimer);
     } catch (error) {
       console.error("Failed to fetch first timer:", error);
     } finally {
