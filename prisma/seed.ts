@@ -96,7 +96,10 @@ async function main() {
         email: 'admin@ce-hq.com'
       }
     },
-    update: {},
+    update: {
+      passwordHash: '$2a$12$1W4i2DX4QRLlPB4CezGT3emz2tMgMAuJp3fcsbb9j8bFOOGIlB616', // password: admin123
+      isActive: true
+    },
     create: {
       tenantId: tenant.id,
       email: 'admin@ce-hq.com',
