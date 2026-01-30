@@ -8,18 +8,26 @@
     "build": "bun build src/index.ts --target bun --outdir dist",
     "start": "bun run dist/index.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
-    "hono": "^4.6.15",
     "@hono/zod-validator": "^0.2.2",
-    "zod": "^3.23.8",
-    "@prisma/client": "^6.0.1",
-    "jose": "^5.9.3",
-    "bcryptjs": "^2.4.3",
-    "pino": "^9.13.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@prisma/client": "^7.3.0",
     "@sentry/bun": "^8.35.0",
-    "@opentelemetry/api": "^1.9.0"
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.67.2",
+    "hono": "^4.6.15",
+    "jest": "^30.2.0",
+    "jose": "^5.9.3",
+    "pino": "^9.13.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "bun-types": "^1.0.5",

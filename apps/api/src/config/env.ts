@@ -8,6 +8,9 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  SMS_API_KEY: z.string().optional(),
+  EMAIL_API_KEY: z.string().optional(),
   SENTRY_DSN: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional()
 });

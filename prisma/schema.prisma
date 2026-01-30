@@ -193,6 +193,8 @@ model FirstTimer {
   consent        Boolean       @default(true)
   source         String        @default("form")
   status         PipelineStage @default(NEW)
+  emailVerified  Boolean       @default(false)
+  phoneVerified  Boolean       @default(false)
   notes          Json?
   tags           String[]      @default([])
   createdAt      DateTime      @default(now())
@@ -204,6 +206,7 @@ model FirstTimer {
   foundationEnrollments FoundationEnrollment[]
   departmentEnrollments DepartmentEnrollment[]
   submissions    FormSubmission[]
+  verificationCodes VerificationCode[]
 
   @@index([tenantId])
   @@index([churchId])
@@ -341,6 +344,26 @@ model Notification {
 
   @@index([tenantId])
   @@index([status])
+}
+
+model VerificationCode {
+  id           String   @id @default(cuid())
+  tenantId     String
+  firstTimerId String
+  channel      String   // email, sms, whatsapp
+  code         String   @db.VarChar(6)
+  type         String   // verification, phone_verification, email_verification
+  attempts     Int      @default(0)
+  maxAttempts  Int      @default(3)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+  firstTimer   FirstTimer @relation(fields: [firstTimerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([firstTimerId])
+  @@index([channel, code])
+  @@index([expiresAt])
 }
 
 model AuditLog {
