@@ -12,6 +12,8 @@ import { registerFirstTimerRoutes } from './routes/first-timers.js';
 import { registerVerificationRoutes } from './routes/verification.js';
 import { registerFollowUpRoutes } from './routes/follow-ups.js';
 import { registerFormBuilderRoutes } from './routes/form-builder.js';
+import { registerFoundationRoutes } from './routes/foundation.js';
+import { registerDepartmentRoutes } from './routes/departments.js';
 import type { AppBindings } from './types/context.js';
 
 export const createApp = () => {
@@ -39,6 +41,8 @@ export const createApp = () => {
   registerVerificationRoutes(app);
   registerFollowUpRoutes(app);
   registerFormBuilderRoutes(app);
+  registerFoundationRoutes(app);
+  registerDepartmentRoutes(app);
 
   app.get('/', (c) => c.json({ status: 'ok' }));
 
