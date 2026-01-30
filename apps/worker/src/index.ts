@@ -7,28 +7,151 @@ const logger = pino({ name: 'worker', level: process.env.LOG_LEVEL ?? 'info' });
 const envSchema = z.object({
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   QUEUE_NAME: z.string().min(1).default('firsttimers-default'),
-  SMS_API_KEY: z.string().optional(),
-  EMAIL_API_KEY: z.string().optional()
+  // Email provider (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  FROM_EMAIL: z.string().email().optional(),
+  // SMS provider (Twilio)
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
 
+interface SmsProvider {
+  send(to: string, message: string): Promise<boolean>;
+}
+
+interface EmailProvider {
+  send(to: string, subject: string, message: string): Promise<boolean>;
+}
+
+// Resend email provider implementation
+class ResendProvider implements EmailProvider {
+  private apiKey: string;
+  private fromEmail: string;
+
+  constructor(apiKey: string, fromEmail: string) {
+    this.apiKey = apiKey;
+    this.fromEmail = fromEmail;
+  }
+
+  async send(to: string, subject: string, message: string): Promise<boolean> {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: this.fromEmail,
+          to,
+          subject,
+          text: message,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error({ error, to }, 'Failed to send email via Resend');
+        return false;
+      }
+
+      logger.info({ to, subject }, 'Email sent successfully via Resend');
+      return true;
+    } catch (error) {
+      logger.error({ error, to }, 'Exception sending email');
+      return false;
+    }
+  }
+}
+
+// Twilio SMS provider implementation
+class TwilioProvider implements SmsProvider {
+  private accountSid: string;
+  private authToken: string;
+  private fromNumber: string;
+
+  constructor(accountSid: string, authToken: string, fromNumber: string) {
+    this.accountSid = accountSid;
+    this.authToken = authToken;
+    this.fromNumber = fromNumber;
+  }
+
+  async send(to: string, message: string): Promise<boolean> {
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
+      const auth = Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          To: to,
+          From: this.fromNumber,
+          Body: message,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error({ error, to }, 'Failed to send SMS via Twilio');
+        return false;
+      }
+
+      logger.info({ to }, 'SMS sent successfully via Twilio');
+      return true;
+    } catch (error) {
+      logger.error({ error, to }, 'Exception sending SMS');
+      return false;
+    }
+  }
+}
+
+// Factory functions to create providers based on environment
+const createEmailProvider = (): EmailProvider | null => {
+  if (env.RESEND_API_KEY && env.FROM_EMAIL) {
+    return new ResendProvider(env.RESEND_API_KEY, env.FROM_EMAIL);
+  }
+  logger.warn('No email provider configured');
+  return null;
+};
+
+const createSmsProvider = (): SmsProvider | null => {
+  if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER) {
+    return new TwilioProvider(
+      env.TWILIO_ACCOUNT_SID,
+      env.TWILIO_AUTH_TOKEN,
+      env.TWILIO_PHONE_NUMBER
+    );
+  }
+  logger.warn('No SMS provider configured');
+  return null;
+};
+
+const emailProvider = createEmailProvider();
+const smsProvider = createSmsProvider();
+
 const sendSms = async (to: string, message: string) => {
   logger.info({ to }, 'Sending SMS');
-  if (!env.SMS_API_KEY) {
-    logger.warn('SMS_API_KEY not configured, skipping SMS send');
-    return true;
+  if (!smsProvider) {
+    logger.warn('SMS provider not configured, message not sent');
+    return false;
   }
-  return true;
+  return smsProvider.send(to, message);
 };
 
 const sendEmail = async (to: string, subject: string, message: string) => {
   logger.info({ to, subject }, 'Sending email');
-  if (!env.EMAIL_API_KEY) {
-    logger.warn('EMAIL_API_KEY not configured, skipping email send');
-    return true;
+  if (!emailProvider) {
+    logger.warn('Email provider not configured, message not sent');
+    return false;
   }
-  return true;
+  return emailProvider.send(to, subject, message);
 };
 
 const processVerificationNotification = async (payload: any) => {

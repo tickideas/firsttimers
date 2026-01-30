@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
-import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
@@ -22,6 +21,7 @@ const updateFirstTimerSchema = z.object({
 
 export const registerFirstTimerRoutes = (app: App) => {
   app.get('/api/first-timers', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), zValidator('query', firstTimerQuerySchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const { page, limit, status, search } = c.req.valid('query');
@@ -81,6 +81,7 @@ export const registerFirstTimerRoutes = (app: App) => {
   });
 
   app.get('/api/first-timers/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -124,6 +125,7 @@ export const registerFirstTimerRoutes = (app: App) => {
   });
 
   app.put('/api/first-timers/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier']), zValidator('json', updateFirstTimerSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -169,6 +171,7 @@ export const registerFirstTimerRoutes = (app: App) => {
   });
 
   app.delete('/api/first-timers/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -189,5 +192,60 @@ export const registerFirstTimerRoutes = (app: App) => {
     });
 
     return c.json({ message: 'First timer deleted successfully' });
+  });
+
+  app.get('/api/first-timers/stats', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), async (c) => {
+    const prisma = c.get('prisma')
+    const user = c.get('authUser');
+    if (!user) return c.json({ message: 'Unauthorized' }, 401);
+
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const [
+      totalFirstTimers,
+      newThisWeek,
+      pendingFollowUps,
+      foundationEnrolled,
+      byStatus
+    ] = await Promise.all([
+      prisma.firstTimer.count({
+        where: { tenantId: user.tenantId }
+      }),
+      prisma.firstTimer.count({
+        where: {
+          tenantId: user.tenantId,
+          createdAt: { gte: weekAgo }
+        }
+      }),
+      prisma.firstTimer.count({
+        where: {
+          tenantId: user.tenantId,
+          status: { in: ['NEW', 'VERIFIED', 'CONTACTED'] }
+        }
+      }),
+      prisma.firstTimer.count({
+        where: {
+          tenantId: user.tenantId,
+          status: { in: ['FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED'] }
+        }
+      }),
+      prisma.firstTimer.groupBy({
+        by: ['status'],
+        where: { tenantId: user.tenantId },
+        _count: { id: true }
+      })
+    ]);
+
+    return c.json({
+      totalFirstTimers,
+      newThisWeek,
+      pendingFollowUps,
+      foundationEnrolled,
+      byStatus: byStatus.reduce((acc, stat) => {
+        acc[stat.status] = stat._count.id;
+        return acc;
+      }, {} as Record<string, number>)
+    });
   });
 };

@@ -59,39 +59,27 @@ export default function DashboardPage() {
       if (!token) return;
 
       try {
-        // Fetch first-timers for stats
-        const response = await api.get<{
+        // Fetch stats from dedicated endpoint (server-side aggregation)
+        const statsResponse = await api.get<{
+          totalFirstTimers: number;
+          newThisWeek: number;
+          pendingFollowUps: number;
+          foundationEnrolled: number;
+        }>("/api/first-timers/stats", { token });
+
+        setStats(statsResponse);
+
+        // Fetch recent first-timers for display
+        const recentResponse = await api.get<{
           firstTimers: Array<{
             id: string;
             fullName: string;
             status: string;
             createdAt: string;
           }>;
-          pagination: { total: number };
-        }>("/api/first-timers?limit=10", { token });
+        }>("/api/first-timers?limit=5", { token });
 
-        const firstTimers = response.firstTimers || [];
-        const total = response.pagination?.total || 0;
-
-        // Calculate stats
-        const now = new Date();
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const newThisWeek = firstTimers.filter(
-          (ft) => new Date(ft.createdAt) >= weekAgo
-        ).length;
-
-        setStats({
-          totalFirstTimers: total,
-          newThisWeek,
-          pendingFollowUps: firstTimers.filter((ft) =>
-            ["NEW", "VERIFIED", "CONTACTED"].includes(ft.status)
-          ).length,
-          foundationEnrolled: firstTimers.filter((ft) =>
-            ft.status.startsWith("FOUNDATION_")
-          ).length,
-        });
-
-        setRecentFirstTimers(firstTimers.slice(0, 5));
+        setRecentFirstTimers(recentResponse.firstTimers || []);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {

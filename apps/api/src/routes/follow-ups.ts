@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
-import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
@@ -35,6 +34,7 @@ const updateFollowUpSchema = z.object({
 
 export const registerFollowUpRoutes = (app: App) => {
   app.get('/api/follow-ups', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('query', followUpQuerySchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const { page, limit, status, assignedTo } = c.req.valid('query');
@@ -99,6 +99,7 @@ export const registerFollowUpRoutes = (app: App) => {
   });
 
   app.get('/api/follow-ups/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -141,6 +142,7 @@ export const registerFollowUpRoutes = (app: App) => {
   });
 
   app.post('/api/follow-ups', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), zValidator('json', assignFollowUpSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const { firstTimerId, assignedToId, priority, notes } = await c.req.json();
@@ -200,6 +202,7 @@ export const registerFollowUpRoutes = (app: App) => {
   });
 
   app.put('/api/follow-ups/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('json', updateFollowUpSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -260,6 +263,7 @@ export const registerFollowUpRoutes = (app: App) => {
   });
 
   app.post('/api/follow-ups/:id/attempts', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('json', contactAttemptSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -310,6 +314,7 @@ export const registerFollowUpRoutes = (app: App) => {
   });
 
   app.get('/api/follow-ups/stats', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
 

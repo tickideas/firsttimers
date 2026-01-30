@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,6 +34,7 @@ interface Department {
   name: string;
   description: string | null;
   church: {
+    id: string;
     name: string;
   };
   _count?: {
@@ -52,51 +54,10 @@ export default function DepartmentsPage() {
     if (!token) return;
 
     try {
-      // Mock data for now
-      setDepartments([
-        {
-          id: "1",
-          name: "Choir",
-          description: "Music and worship ministry",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 25 },
-        },
-        {
-          id: "2",
-          name: "Ushering",
-          description: "Hospitality and guest services",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 18 },
-        },
-        {
-          id: "3",
-          name: "Media",
-          description: "Audio, video, and live streaming",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 12 },
-        },
-        {
-          id: "4",
-          name: "Children's Church",
-          description: "Ministry to children",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 20 },
-        },
-        {
-          id: "5",
-          name: "Protocol",
-          description: "VIP services and coordination",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 8 },
-        },
-        {
-          id: "6",
-          name: "Sanitation",
-          description: "Cleanliness and hygiene",
-          church: { name: "Main Campus" },
-          _count: { enrollments: 15 },
-        },
-      ]);
+      const response = await api.get<{
+        data: Department[];
+      }>("/api/departments", { token });
+      setDepartments(response.data || []);
     } catch (error) {
       console.error("Failed to fetch departments:", error);
     } finally {
@@ -111,24 +72,39 @@ export default function DepartmentsPage() {
   const handleCreate = async () => {
     if (!token || !form.name) return;
 
+    // Get churchId from existing departments or use empty string
+    const churchId = departments[0]?.church?.id;
+    if (!churchId) {
+      console.error("No church available to create department");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      setDepartments([
-        ...departments,
-        {
-          id: Date.now().toString(),
-          name: form.name,
-          description: form.description,
-          church: { name: "Main Campus" },
-          _count: { enrollments: 0 },
-        },
-      ]);
+      const response = await api.post<Department>("/api/departments", {
+        name: form.name,
+        description: form.description,
+        churchId,
+      }, { token });
+
+      setDepartments([...departments, response]);
       setModalOpen(false);
       setForm({ name: "", description: "" });
     } catch (error) {
       console.error("Failed to create department:", error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!token) return;
+
+    try {
+      await api.delete(`/api/departments/${id}`, { token });
+      setDepartments(departments.filter((d) => d.id !== id));
+    } catch (error) {
+      console.error("Failed to delete department:", error);
     }
   };
 
@@ -215,7 +191,10 @@ export default function DepartmentsPage() {
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => handleDelete(dept.id)}
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>

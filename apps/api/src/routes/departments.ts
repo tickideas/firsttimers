@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
@@ -23,7 +22,10 @@ export function registerDepartmentRoutes(app: App) {
 
   // List departments
   app.get('/api/departments', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { churchId } = c.req.query();
 
     const departments = await prisma.department.findMany({
@@ -43,7 +45,10 @@ export function registerDepartmentRoutes(app: App) {
 
   // Get department by ID
   app.get('/api/departments/:id', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { id } = c.req.param();
 
     const department = await prisma.department.findFirst({
@@ -75,7 +80,10 @@ export function registerDepartmentRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'department_head']),
     zValidator('json', departmentSchema),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const data = c.req.valid('json');
 
       // Check for duplicate name in the same church
@@ -112,7 +120,10 @@ export function registerDepartmentRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'department_head']),
     zValidator('json', departmentSchema.partial()),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const { id } = c.req.param();
       const data = c.req.valid('json');
 
@@ -135,7 +146,10 @@ export function registerDepartmentRoutes(app: App) {
     requireAuth,
     requireRoles(['super_admin', 'zonal_admin', 'church_admin']),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const { id } = c.req.param();
 
       await prisma.department.deleteMany({
@@ -150,7 +164,10 @@ export function registerDepartmentRoutes(app: App) {
 
   // List department enrollments
   app.get('/api/department-enrollments', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { departmentId, firstTimerId, status } = c.req.query();
 
     const enrollments = await prisma.departmentEnrollment.findMany({
@@ -180,7 +197,10 @@ export function registerDepartmentRoutes(app: App) {
     requireAuth,
     zValidator('json', enrollmentSchema),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const data = c.req.valid('json');
 
       // Verify first timer belongs to tenant
@@ -230,6 +250,7 @@ export function registerDepartmentRoutes(app: App) {
       notes: z.record(z.unknown()).optional(),
     })),
     async (c) => {
+      const prisma = c.get('prisma')
       const { id } = c.req.param();
       const data = c.req.valid('json');
 
@@ -260,6 +281,7 @@ export function registerDepartmentRoutes(app: App) {
     '/api/department-enrollments/:id',
     requireAuth,
     async (c) => {
+      const prisma = c.get('prisma')
       const { id } = c.req.param();
 
       await prisma.departmentEnrollment.delete({

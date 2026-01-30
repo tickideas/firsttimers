@@ -1,4 +1,3 @@
-import { prisma } from '../lib/prisma.js';
 import { generateVerificationCode, generateExpiryTime, isValidVerificationCode } from '../utils/verification.js';
 import { queueVerificationNotification } from '../services/notifications.js';
 import { env } from '../config/env.js';
@@ -16,6 +15,7 @@ const verifyCodeSchema = {
 
 export const registerVerificationRoutes = (app: App) => {
   app.post('/api/verification/send', async (c) => {
+    const prisma = c.get('prisma')
     const body = await c.req.json();
     const { firstTimerId, channel } = body;
 
@@ -92,6 +92,7 @@ export const registerVerificationRoutes = (app: App) => {
   });
 
   app.post('/api/verification/verify', async (c) => {
+    const prisma = c.get('prisma')
     const body = await c.req.json();
     const { firstTimerId, code } = body;
 
@@ -177,6 +178,7 @@ export const registerVerificationRoutes = (app: App) => {
   });
 
   app.get('/api/verification/status/:firstTimerId', async (c) => {
+    const prisma = c.get('prisma')
     const firstTimerId = c.req.param('firstTimerId');
     const tenantId = c.get('authUser')?.tenantId;
 

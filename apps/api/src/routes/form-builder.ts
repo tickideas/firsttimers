@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
-import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
@@ -43,6 +42,7 @@ const formQuerySchema = z.object({
 
 export const registerFormBuilderRoutes = (app: App) => {
   app.get('/api/forms', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), zValidator('query', formQuerySchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const { page, limit, churchId, active } = c.req.valid('query');
@@ -98,6 +98,7 @@ export const registerFormBuilderRoutes = (app: App) => {
   });
 
   app.get('/api/forms/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -132,6 +133,7 @@ export const registerFormBuilderRoutes = (app: App) => {
   });
 
   app.post('/api/forms', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), zValidator('json', createFormSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const { churchId, title, description, fields, active } = c.req.valid('json');
@@ -184,6 +186,7 @@ export const registerFormBuilderRoutes = (app: App) => {
   });
 
   app.put('/api/forms/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), zValidator('json', updateFormSchema), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -237,6 +240,7 @@ export const registerFormBuilderRoutes = (app: App) => {
   });
 
   app.delete('/api/forms/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');
@@ -260,6 +264,7 @@ export const registerFormBuilderRoutes = (app: App) => {
   });
 
   app.post('/api/forms/:id/duplicate', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+    const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
     const id = c.req.param('id');

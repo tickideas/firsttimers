@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
@@ -28,7 +27,10 @@ export function registerFoundationRoutes(app: App) {
 
   // List courses
   app.get('/api/foundation/courses', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
 
     const courses = await prisma.foundationCourse.findMany({
       where: { tenantId },
@@ -45,7 +47,10 @@ export function registerFoundationRoutes(app: App) {
 
   // Get course by ID
   app.get('/api/foundation/courses/:id', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { id } = c.req.param();
 
     const course = await prisma.foundationCourse.findFirst({
@@ -74,7 +79,10 @@ export function registerFoundationRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'foundation_coordinator']),
     zValidator('json', courseSchema),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const data = c.req.valid('json');
 
       const course = await prisma.foundationCourse.create({
@@ -95,7 +103,10 @@ export function registerFoundationRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'foundation_coordinator']),
     zValidator('json', courseSchema.partial()),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const { id } = c.req.param();
       const data = c.req.valid('json');
 
@@ -118,7 +129,10 @@ export function registerFoundationRoutes(app: App) {
     requireAuth,
     requireRoles(['super_admin', 'zonal_admin']),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const { id } = c.req.param();
 
       await prisma.foundationCourse.deleteMany({
@@ -133,7 +147,10 @@ export function registerFoundationRoutes(app: App) {
 
   // List classes
   app.get('/api/foundation/classes', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { courseId, churchId } = c.req.query();
 
     const classes = await prisma.foundationClass.findMany({
@@ -155,7 +172,10 @@ export function registerFoundationRoutes(app: App) {
 
   // Get class by ID
   app.get('/api/foundation/classes/:id', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { id } = c.req.param();
 
     const foundationClass = await prisma.foundationClass.findFirst({
@@ -190,6 +210,7 @@ export function registerFoundationRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'foundation_coordinator']),
     zValidator('json', classSchema),
     async (c) => {
+      const prisma = c.get('prisma')
       const data = c.req.valid('json');
 
       const foundationClass = await prisma.foundationClass.create({
@@ -214,7 +235,10 @@ export function registerFoundationRoutes(app: App) {
 
   // List enrollments
   app.get('/api/foundation/enrollments', requireAuth, async (c) => {
-    const tenantId = c.get('jwtPayload').tenantId;
+    const prisma = c.get('prisma')
+    const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
     const { classId, firstTimerId } = c.req.query();
 
     const enrollments = await prisma.foundationEnrollment.findMany({
@@ -246,7 +270,10 @@ export function registerFoundationRoutes(app: App) {
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'foundation_coordinator']),
     zValidator('json', enrollmentSchema),
     async (c) => {
-      const tenantId = c.get('jwtPayload').tenantId;
+      const prisma = c.get('prisma')
+      const user = c.get('authUser')
+    if (!user) return c.json({ message: 'Unauthorized' }, 401)
+    const tenantId = user.tenantId
       const data = c.req.valid('json');
 
       // Verify first timer belongs to tenant
@@ -291,6 +318,7 @@ export function registerFoundationRoutes(app: App) {
       attendance: z.record(z.unknown()).optional(),
     })),
     async (c) => {
+      const prisma = c.get('prisma')
       const { id } = c.req.param();
       const data = c.req.valid('json');
 

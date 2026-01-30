@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { api } from "./api";
 
 interface User {
   id: string;
@@ -22,8 +21,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+async function fetchWithCredentials(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "Request failed");
+  }
+
+  return data;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,36 +48,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Restore auth state from localStorage
-    const savedToken = localStorage.getItem(TOKEN_KEY);
-    const savedUser = localStorage.getItem(USER_KEY);
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    // Check for existing session via /auth/me endpoint
+    fetchWithCredentials("/auth/me")
+      .then((data) => {
+        if (data.user) {
+          setUser(data.user);
+          setToken("authenticated"); // Token is in httpOnly cookie
+        }
+      })
+      .catch(() => {
+        // No active session
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const login = useCallback(async (email: string, password: string, tenantSlug: string) => {
-    const response = await api.post<{
-      accessToken: string;
-      refreshToken: string;
-      user: User;
-    }>("/auth/login", { email, password, tenantSlug });
+    const response = await fetchWithCredentials("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password, tenantSlug }),
+    });
 
-    setToken(response.accessToken);
     setUser(response.user);
-
-    localStorage.setItem(TOKEN_KEY, response.accessToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+    setToken("authenticated"); // Token is stored in httpOnly cookie by server
   }, []);
 
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+  const logout = useCallback(async () => {
+    try {
+      await fetchWithCredentials("/auth/logout", { method: "POST" });
+    } finally {
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   return (
@@ -71,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
-        isAuthenticated: !!token && !!user,
+        isAuthenticated: !!user,
       }}
     >
       {children}

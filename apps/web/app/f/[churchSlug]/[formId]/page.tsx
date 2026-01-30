@@ -40,9 +40,11 @@ export default function FirstTimerForm() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
   const fetchForm = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:3001/f/${churchSlug}/${formId}`);
+      const response = await fetch(`${API_URL}/f/${churchSlug}/${formId}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Form not found');
@@ -56,7 +58,7 @@ export default function FirstTimerForm() {
     } finally {
       setLoading(false);
     }
-  }, [churchSlug, formId]);
+  }, [churchSlug, formId, API_URL]);
 
   useEffect(() => {
     fetchForm();
@@ -68,9 +70,6 @@ export default function FirstTimerForm() {
 
   const formatPhoneE164 = (phone: string): string => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('0')) {
-      return '+234' + digits.slice(1);
-    }
     if (!digits.startsWith('+')) {
       return '+' + digits;
     }
@@ -100,7 +99,7 @@ export default function FirstTimerForm() {
         payload.phoneE164 = formatPhoneE164(formValues.phoneE164);
       }
 
-      const response = await fetch(`http://localhost:3001/f/${churchSlug}/${formId}`, {
+      const response = await fetch(`${API_URL}/f/${churchSlug}/${formId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

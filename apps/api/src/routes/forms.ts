@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
-import { prisma } from '../lib/prisma.js';
 import type { App } from '../app.js';
 
 const getFormSchema = z.object({
@@ -21,6 +20,7 @@ const submitFormSchema = z.object({
 
 export const registerPublicFormRoutes = (app: App) => {
   app.get('/f/:churchSlug/:formId', zValidator('param', getFormSchema), async (c) => {
+    const prisma = c.get('prisma')
     const { churchSlug, formId } = c.req.valid('param');
 
     const church = await prisma.church.findFirst({
@@ -67,6 +67,7 @@ export const registerPublicFormRoutes = (app: App) => {
   });
 
   app.post('/f/:churchSlug/:formId', zValidator('param', getFormSchema), zValidator('json', submitFormSchema), async (c) => {
+    const prisma = c.get('prisma')
     const { churchSlug, formId } = c.req.valid('param');
     const { fullName, email, phoneE164, consent, metadata } = c.req.valid('json');
 
@@ -92,26 +93,21 @@ export const registerPublicFormRoutes = (app: App) => {
       return c.json({ message: 'Form not found or inactive' }, 404);
     }
 
+    let existingFirstTimer = null
     if (email || phoneE164) {
-      const existingFirstTimer = await prisma.firstTimer.findFirst({
+      existingFirstTimer = await prisma.firstTimer.findFirst({
         where: {
           tenantId: church.tenantId,
           OR: [
             email ? { email: email.toLowerCase() } : {},
             phoneE164 ? { phoneE164 } : {}
           ].filter(condition => Object.keys(condition).length > 0)
-        }
-      });
-
-      if (existingFirstTimer) {
-        return c.json({ 
-          message: 'A record with this email or phone number already exists',
-          existingId: existingFirstTimer.id 
-        }, 409);
-      }
+        },
+        select: { id: true }
+      })
     }
 
-    const firstTimer = await prisma.firstTimer.create({
+    const firstTimer = existingFirstTimer ?? await prisma.firstTimer.create({
       data: {
         tenantId: church.tenantId,
         churchId: church.id,
@@ -123,15 +119,8 @@ export const registerPublicFormRoutes = (app: App) => {
         status: 'NEW',
         notes: metadata ? { source: metadata } : undefined
       },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneE164: true,
-        status: true,
-        createdAt: true
-      }
-    });
+      select: { id: true }
+    })
 
     const submission = await prisma.formSubmission.create({
       data: {
@@ -167,10 +156,8 @@ export const registerPublicFormRoutes = (app: App) => {
 
     return c.json({
       success: true,
-      firstTimer,
-      submission,
-      followUp,
+      submissionId: submission.id,
       message: 'Form submitted successfully'
-    });
-  });
-};
+    })
+  })
+}

@@ -29,6 +29,7 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...fetchOptions,
+    credentials: "include", // Always include cookies for httpOnly token support
     headers,
   });
 

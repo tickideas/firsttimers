@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
-import { prisma } from '../lib/prisma.js';
 import { signAccessToken, signRefreshToken } from '../services/jwt.js';
 import { verifyPassword } from '../utils/password.js';
 import type { App } from '../app.js';
@@ -15,6 +14,7 @@ const loginSchema = z.object({
 export const registerAuthRoutes = (app: App) => {
   // Public endpoint to get available tenants/churches for login dropdown
   app.get('/auth/tenants', async (c) => {
+    const prisma = c.get('prisma')
     const tenants = await prisma.tenant.findMany({
       select: {
         id: true,
@@ -28,6 +28,7 @@ export const registerAuthRoutes = (app: App) => {
   });
 
   app.post('/auth/login', zValidator('json', loginSchema), async (c) => {
+    const prisma = c.get('prisma')
     const { email, password, tenantSlug } = c.req.valid('json');
 
     const user = await prisma.user.findFirst({

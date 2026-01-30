@@ -1,102 +1,83 @@
-import type { Context, Next } from 'hono';
-import { prisma } from '../lib/prisma.js';
-import type { AppBindings } from '../types/context.js';
+import type { Context, Next } from 'hono'
+import type { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
+import type { AppBindings } from '../types/context.js'
+
+const TENANT_ISOLATED_MODELS = new Set([
+  'FirstTimer',
+  'Church',
+  'Form',
+  'FormSubmission',
+  'FollowUp',
+  'ContactAttempt',
+  'FoundationCourse',
+  'FoundationClass',
+  'FoundationEnrollment',
+  'Department',
+  'DepartmentEnrollment',
+  'Notification',
+  'VerificationCode',
+])
 
 export const tenantIsolation = async (c: Context<AppBindings>, next: Next) => {
-  const user = c.get('authUser');
-  
+  const user = c.get('authUser')
+
   if (!user) {
-    return next();
+    c.set('prisma', prisma)
+    return next()
   }
 
-  const originalFindMany = prisma.firstTimer.findMany.bind(prisma.firstTimer);
-  const originalFindFirst = prisma.firstTimer.findFirst.bind(prisma.firstTimer);
-  const originalFindUnique = prisma.firstTimer.findUnique.bind(prisma.firstTimer);
-  const originalCreate = prisma.firstTimer.create.bind(prisma.firstTimer);
-  const originalUpdate = prisma.firstTimer.update.bind(prisma.firstTimer);
-  const originalDelete = prisma.firstTimer.delete.bind(prisma.firstTimer);
-  prisma.firstTimer.findMany = (args: any) => {
-    return originalFindMany({
-      ...args,
-      where: {
-        tenantId: user.tenantId,
-        ...args.where
-      }
-    });
-  };
+  const tenantId = user.tenantId
 
-  prisma.firstTimer.findFirst = (args: any) => {
-    return originalFindFirst({
-      ...args,
-      where: {
-        tenantId: user.tenantId,
-        ...args.where
-      }
-    });
-  };
+  const tenantPrisma = prisma.$extends({
+    query: {
+      $allOperations({ model, operation, args, query }) {
+        if (!model || !TENANT_ISOLATED_MODELS.has(model)) {
+          return query(args)
+        }
 
-  prisma.firstTimer.findUnique = (args: any) => {
-    return originalFindUnique({
-      ...args,
-      where: {
-        tenantId: user.tenantId,
-        ...args.where
-      }
-    });
-  };
+        const argsWithTenant = args as Record<string, unknown>
 
-  prisma.firstTimer.create = (args: any) => {
-    return originalCreate({
-      ...args,
-      data: {
-        tenantId: user.tenantId,
-        ...args.data
-      }
-    });
-  };
+        if (
+          operation === 'findMany' ||
+          operation === 'findFirst' ||
+          operation === 'findUnique' ||
+          operation === 'findFirstOrThrow' ||
+          operation === 'findUniqueOrThrow' ||
+          operation === 'count' ||
+          operation === 'aggregate' ||
+          operation === 'groupBy' ||
+          operation === 'deleteMany' ||
+          operation === 'updateMany'
+        ) {
+          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
+        }
 
-  prisma.firstTimer.update = (args: any) => {
-    return originalUpdate({
-      ...args,
-      where: {
-        tenantId: user.tenantId,
-        ...args.where
-      },
-      ...args
-    });
-  };
+        if (operation === 'update' || operation === 'delete') {
+          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
+        }
 
-  prisma.firstTimer.delete = (args: any) => {
-    return originalDelete({
-      ...args,
-      where: {
-        tenantId: user.tenantId,
-        ...args.where
-      }
-    });
-  };
+        if (operation === 'create') {
+          argsWithTenant.data = { ...argsWithTenant.data as object, tenantId }
+        }
 
-  const modelsToIsolate = [
-    'church', 'form', 'formSubmission', 'followUp', 'contactAttempt',
-    'foundationCourse', 'foundationClass', 'foundationEnrollment',
-    'department', 'departmentEnrollment', 'notification', 'verificationCode'
-  ];
-
-  for (const model of modelsToIsolate) {
-    const prismaModel = (prisma as any)[model];
-    if (prismaModel && prismaModel.findMany) {
-      const originalFindMany = prismaModel.findMany.bind(prismaModel);
-      prismaModel.findMany = (args: any) => {
-        return originalFindMany({
-          ...args,
-          where: {
-            tenantId: user.tenantId,
-            ...args.where
+        if (operation === 'createMany') {
+          const data = argsWithTenant.data
+          if (Array.isArray(data)) {
+            argsWithTenant.data = data.map((item: object) => ({ ...item, tenantId }))
           }
-        });
-      };
-    }
-  }
+        }
 
-  await next();
-};
+        if (operation === 'upsert') {
+          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
+          argsWithTenant.create = { ...argsWithTenant.create as object, tenantId }
+        }
+
+        return query(argsWithTenant)
+      },
+    },
+  }) as unknown as PrismaClient
+
+  c.set('prisma', tenantPrisma)
+  return next()
+}
