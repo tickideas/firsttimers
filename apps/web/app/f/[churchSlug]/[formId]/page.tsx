@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 
 interface FormField {
@@ -40,11 +40,7 @@ export default function FirstTimerForm() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
 
-  useEffect(() => {
-    fetchForm();
-  }, [churchSlug, formId]);
-
-  const fetchForm = async () => {
+  const fetchForm = useCallback(async () => {
     try {
       const response = await fetch(`http://localhost:3001/f/${churchSlug}/${formId}`);
       if (!response.ok) {
@@ -60,7 +56,11 @@ export default function FirstTimerForm() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [churchSlug, formId]);
+
+  useEffect(() => {
+    fetchForm();
+  }, [fetchForm]);
 
   const handleInputChange = (name: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [name]: value }));
@@ -85,7 +85,7 @@ export default function FirstTimerForm() {
     setError(null);
 
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, string | boolean> = {
         churchSlug,
         formId,
         fullName: formValues.fullName || '',

@@ -14,29 +14,23 @@
     "test:coverage": "bun test --coverage"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.2.2",
+    "@hono/zod-validator": "^0.7.6",
     "@opentelemetry/api": "^1.9.0",
-    "@prisma/client": "^7.3.0",
-    "@sentry/bun": "^8.35.0",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/jest": "^30.0.0",
+    "@sentry/bun": "^8.52.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.67.2",
-    "hono": "^4.6.15",
-    "jest": "^30.2.0",
-    "jose": "^5.9.3",
-    "pino": "^9.13.1",
-    "zod": "^3.23.8"
+    "hono": "^4.7.4",
+    "jose": "^6.0.8",
+    "pino": "^9.6.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "bun-types": "^1.0.5",
-    "typescript": "^5.5.4",
-    "eslint": "^9.0.0",
-    "@types/node": "^22.7.5",
-    "prisma": "^6.0.1",
+    "@firsttimers/config": "workspace:*",
     "@types/bcryptjs": "^2.4.6",
-    "pino-pretty": "^11.3.0",
-    "@firsttimers/config": "workspace:*"
+    "@types/node": "^22.13.4",
+    "bun-types": "^1.2.4",
+    "eslint": "^9.19.0",
+    "pino-pretty": "^13.0.0",
+    "typescript": "^5.7.3"
   }
 }

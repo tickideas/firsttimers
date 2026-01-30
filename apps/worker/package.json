@@ -11,16 +11,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "bullmq": "^5.27.0",
-    "ioredis": "^5.4.1",
-    "pino": "^9.5.0",
-    "zod": "^3.23.8"
+    "bullmq": "^5.67.2",
+    "ioredis": "^5.4.2",
+    "pino": "^9.6.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "bun-types": "^1.0.5",
-    "typescript": "^5.5.4",
-    "eslint": "^9.0.0",
-    "@types/node": "^22.7.5",
-    "@firsttimers/config": "workspace:*"
+    "@firsttimers/config": "workspace:*",
+    "@types/node": "^22.13.4",
+    "bun-types": "^1.2.4",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3"
   }
 }

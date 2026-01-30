@@ -1,22 +1,42 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["bun.lockb"],
+  "globalDependencies": ["bun.lockb", ".env"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "REDIS_URL"],
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**"],
-      "inputs": ["src/**", "app/**", "package.json", "tsconfig.json"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "inputs": [
+        "src/**",
+        "app/**",
+        "package.json",
+        "tsconfig.json",
+        "!**/*.test.ts",
+        "!**/*.spec.ts",
+        "!**/__tests__/**"
+      ]
     },
     "lint": {
-      "outputs": []
-    },
-    "test": {
-      "outputs": []
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["src/**", "app/**", "*.ts", "*.tsx", "*.mjs"]
     },
     "typecheck": {
-      "outputs": []
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["src/**", "app/**", "tsconfig.json", "package.json"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"],
+      "inputs": ["src/**", "**/*.test.ts", "**/*.spec.ts", "__tests__/**"]
     },
     "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "clean": {
       "cache": false
     }
   }
