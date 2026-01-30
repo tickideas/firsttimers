@@ -1,11 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +28,28 @@ export default function LoginPage() {
   const [tenantSlug, setTenantSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [churches, setChurches] = useState<Tenant[]>([]);
+  const [isLoadingChurches, setIsLoadingChurches] = useState(true);
+
+  // Fetch available churches on mount
+  useEffect(() => {
+    const fetchChurches = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+        const response = await fetch(`${apiUrl}/auth/tenants`);
+        if (response.ok) {
+          const data = await response.json();
+          setChurches(data.data || []);
+        }
+      } catch {
+        console.error("Failed to fetch churches");
+      } finally {
+        setIsLoadingChurches(false);
+      }
+    };
+
+    fetchChurches();
+  }, []);
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -53,17 +88,25 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label htmlFor="tenantSlug" className="text-sm font-medium text-gray-700">
-                Organization
+              <label htmlFor="church" className="text-sm font-medium text-gray-700">
+                Church
               </label>
-              <Input
-                id="tenantSlug"
-                type="text"
-                placeholder="your-church-slug"
+              <Select
                 value={tenantSlug}
-                onChange={(e) => setTenantSlug(e.target.value)}
-                required
-              />
+                onValueChange={setTenantSlug}
+                disabled={isLoadingChurches}
+              >
+                <SelectTrigger id="church">
+                  <SelectValue placeholder={isLoadingChurches ? "Loading churches..." : "Select your church"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {churches.map((church) => (
+                    <SelectItem key={church.id} value={church.slug}>
+                      {church.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -94,7 +137,11 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !tenantSlug}
+            >
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>

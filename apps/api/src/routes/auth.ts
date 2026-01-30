@@ -13,6 +13,20 @@ const loginSchema = z.object({
 });
 
 export const registerAuthRoutes = (app: App) => {
+  // Public endpoint to get available tenants/churches for login dropdown
+  app.get('/auth/tenants', async (c) => {
+    const tenants = await prisma.tenant.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return c.json({ data: tenants });
+  });
+
   app.post('/auth/login', zValidator('json', loginSchema), async (c) => {
     const { email, password, tenantSlug } = c.req.valid('json');
 

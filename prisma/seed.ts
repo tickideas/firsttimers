@@ -100,7 +100,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       email: 'admin@ce-hq.com',
-      passwordHash: '$2b$10$placeholder.hash.here',
+      passwordHash: '$2a$12$1W4i2DX4QRLlPB4CezGT3emz2tMgMAuJp3fcsbb9j8bFOOGIlB616', // password: admin123
       name: 'System Administrator',
       isActive: true
     }
