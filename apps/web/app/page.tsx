@@ -63,7 +63,7 @@ export default function LandingPage() {
             {/* First Timer Card */}
             <Card className="group relative overflow-hidden border-0 shadow-xl shadow-blue-500/10 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 bg-white">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <CardContent className="relative p-8">
+              <CardContent className="relative p-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform duration-300">
                   <svg
                     className="w-8 h-8 text-white"
@@ -99,7 +99,7 @@ export default function LandingPage() {
             {/* Admin Card */}
             <Card className="group relative overflow-hidden border-0 shadow-xl shadow-orange-500/10 hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 bg-white">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <CardContent className="relative p-8">
+              <CardContent className="relative p-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 group-hover:scale-110 transition-transform duration-300">
                   <svg
                     className="w-8 h-8 text-white"
