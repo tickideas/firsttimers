@@ -52,12 +52,22 @@ In Dokploy, add these environment variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `POSTGRES_PASSWORD` | Yes | Database password (generate: `openssl rand -base64 32`) |
+| `POSTGRES_PASSWORD` | Yes | Database password (generate: `openssl rand -base64 32`) - avoid special chars like `@`, `/`, `$` |
 | `JWT_SECRET` | Yes | JWT signing key (generate: `openssl rand -base64 48`) |
 | `ENCRYPTION_KEY` | Yes | Data encryption key (generate: `openssl rand -base64 32`) |
 | `API_DOMAIN` | Yes | API subdomain (e.g., `api.example.com`) |
 | `WEB_DOMAIN` | Yes | Web app subdomain (e.g., `app.example.com`) |
+| `DATABASE_URL` | No | Full PostgreSQL URL (overrides auto-constructed URL) |
 | `BREVO_API_KEY` | No | Brevo email API key |
+| `POSTGRES_DB` | No | Database name (default: `firsttimers`) |
+| `POSTGRES_USER` | No | Database user (default: `firsttimers_user`) |
+
+**Note on DATABASE_URL:** By default, the compose file constructs DATABASE_URL from POSTGRES_PASSWORD. If your password contains special characters (`@`, `/`, `$`, `+`, etc.), either:
+1. Use a simple alphanumeric password, or
+2. Set DATABASE_URL directly with the password URL-encoded:
+   ```
+   DATABASE_URL=postgresql://firsttimers_user:yourpassword@postgres:5432/firsttimers
+   ```
 | `POSTGRES_DB` | No | Database name (default: `firsttimers`) |
 | `POSTGRES_USER` | No | Database user (default: `firsttimers_user`) |
 

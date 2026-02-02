@@ -36,7 +36,7 @@ COPY --from=builder /app/apps/web/next.config.ts ./next.config.ts
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
-CMD ["bun", "run", "start"]
+CMD ["./node_modules/.bin/next", "start"]
 
 # Development target
 FROM oven/bun:1.3.8 AS dev

@@ -47,7 +47,7 @@ services:
       target: runner
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
@@ -77,7 +77,7 @@ services:
       target: runner
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
@@ -122,7 +122,7 @@ services:
       dockerfile: ./apps/api/Dockerfile
       target: development
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
     depends_on:
       postgres:
         condition: service_healthy
