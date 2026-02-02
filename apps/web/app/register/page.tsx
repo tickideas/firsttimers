@@ -62,7 +62,7 @@ export default function PublicRegisterPage() {
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [consent, setConsent] = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
   useEffect(() => {
     const fetchChurches = async () => {

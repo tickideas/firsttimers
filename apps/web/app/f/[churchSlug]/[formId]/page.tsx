@@ -40,7 +40,7 @@ export default function FirstTimerForm() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchForm = useCallback(async () => {
     try {

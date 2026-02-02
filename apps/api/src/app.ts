@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 
 import { env } from './config/env.js';
+import { prisma } from './lib/prisma.js';
 import { authenticate } from './middleware/auth.js';
 import { tenantIsolation } from './middleware/tenant-isolation.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -105,6 +106,7 @@ export const createApp = () => {
   app.use('*', logger());
   app.use('*', async (c, next) => {
     c.set('requestId', crypto.randomUUID());
+    c.set('prisma', prisma);
     return next();
   });
 
