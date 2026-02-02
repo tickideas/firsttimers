@@ -8,7 +8,9 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/types/package.json ./packages/types/
 COPY packages/config/package.json ./packages/config/
 COPY packages/ui/package.json ./packages/ui/
+COPY prisma ./prisma
 RUN bun install --frozen-lockfile
+RUN bunx prisma generate
 COPY . .
 
 # Production stage
@@ -23,6 +25,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/apps/worker/dist ./dist
 COPY --from=builder /app/apps/worker/package.json ./package.json
 CMD ["bun", "run", "dist/index.js"]
@@ -32,3 +35,4 @@ FROM oven/bun:1.3.8 AS dev
 WORKDIR /app
 COPY . .
 RUN bun install --frozen-lockfile
+RUN bunx prisma generate

@@ -10,6 +10,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/ui/package.json ./packages/ui/
 COPY prisma ./prisma
 RUN bun install --frozen-lockfile
+RUN bunx prisma generate
 COPY . .
 
 # Production stage
@@ -38,3 +39,4 @@ FROM oven/bun:1.3.8 AS dev
 WORKDIR /app
 COPY . .
 RUN bun install --frozen-lockfile
+RUN bunx prisma generate
