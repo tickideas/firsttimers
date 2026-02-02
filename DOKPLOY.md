@@ -1,9 +1,41 @@
 # Dokploy Deployment Guide
 
+This guide covers deploying the First Timers platform to a self-hosted Dokploy instance.
+
 ## Prerequisites
 
 - Dokploy instance running with Traefik
 - Domain with DNS configured (e.g., `app.example.com`, `api.example.com`)
+- Git repository connected to Dokploy
+
+## Architecture
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │              Dokploy / Traefik              │
+                    └─────────────┬───────────────┬───────────────┘
+                                  │               │
+                    ┌─────────────▼───┐   ┌───────▼─────────────┐
+                    │  api.example.com │   │  app.example.com    │
+                    │     (API:3001)   │   │     (Web:3000)      │
+                    └────────┬────────┘   └───────────┬─────────┘
+                             │                        │
+                    ┌────────▼────────────────────────▼─────────┐
+                    │              Internal Network              │
+                    └────┬──────────────┬──────────────┬────────┘
+                         │              │              │
+                   ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
+                   │  Worker   │  │ PostgreSQL │  │   Redis   │
+                   │ (BullMQ)  │  │    :5432   │  │   :6379   │
+                   └───────────┘  └────────────┘  └───────────┘
+```
+
+**Services:**
+- **Web** (Next.js 15): Frontend application on port 3000
+- **API** (Hono + Bun): REST API on port 3001
+- **Worker** (BullMQ): Background job processor
+- **PostgreSQL 17**: Primary database with RLS
+- **Redis 7**: Queue and caching
 
 ## Quick Deploy
 
@@ -11,7 +43,7 @@
 
 1. Go to Dokploy dashboard > Projects > Create Project
 2. Add a new **Compose** service
-3. Connect your Git repository or paste the compose file
+3. Connect your Git repository
 4. Set compose file path to: `dokploy-compose.yaml`
 
 ### 2. Configure Environment Variables
@@ -65,66 +97,107 @@ To add initial data:
 docker compose exec api bun run prisma:seed
 ```
 
-## Architecture
+## Important: Lockfile Management
 
+This project uses Bun as the package manager. The `bun.lock` file **must be committed to git** for reproducible Docker builds.
+
+### Bun Version Pinning
+
+The Dockerfiles are pinned to a specific Bun version (currently `1.3.8`) to ensure the lockfile matches. If you upgrade Bun locally:
+
+```bash
+# Upgrade bun
+bun upgrade
+
+# Regenerate lockfile
+rm bun.lock && bun install
+
+# Update Dockerfiles to match your bun version
+# Change: FROM oven/bun:1.3.8 to your version
+
+# Commit everything
+git add bun.lock apps/*/Dockerfile
+git commit -m "chore: upgrade bun to X.X.X"
+git push
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │              Dokploy / Traefik              │
-                    └─────────────┬───────────────┬───────────────┘
-                                  │               │
-                    ┌─────────────▼───┐   ┌───────▼─────────────┐
-                    │  api.example.com │   │  app.example.com    │
-                    │     (API:3001)   │   │     (Web:3000)      │
-                    └────────┬────────┘   └───────────┬─────────┘
-                             │                        │
-                    ┌────────▼────────────────────────▼─────────┐
-                    │              Internal Network              │
-                    └────┬──────────────┬──────────────┬────────┘
-                         │              │              │
-                   ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
-                   │  Worker   │  │ PostgreSQL │  │   Redis   │
-                   │ (BullMQ)  │  │    :5432   │  │   :6379   │
-                   └───────────┘  └────────────┘  └───────────┘
+
+### Monorepo Lockfile Requirements
+
+Bun's lockfile includes checksums for ALL `package.json` files in the workspace. The Dockerfiles must copy all of them before running `bun install --frozen-lockfile`:
+
+```dockerfile
+# All package.json files must be copied
+COPY package.json bun.lock ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/worker/package.json ./apps/worker/
+COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
+COPY packages/ui/package.json ./packages/ui/
+RUN bun install --frozen-lockfile
 ```
 
 ## Troubleshooting
 
+### Build fails with "lockfile had changes"
+
+This means the lockfile doesn't match the package.json files. Fix:
+
+```bash
+# Locally, regenerate the lockfile
+rm bun.lock && bun install
+git add bun.lock && git commit -m "fix: regenerate lockfile" && git push
+```
+
+### Build fails with file not found
+
+Ensure all referenced files exist and are not in `.gitignore`. Common issues:
+- `bun.lock` was in `.gitignore` (remove it)
+- `bun.lockb` referenced but doesn't exist (use `bun.lock`)
+
 ### Check service logs
+
 ```bash
 docker compose -f dokploy-compose.yaml logs api
 docker compose -f dokploy-compose.yaml logs web
 docker compose -f dokploy-compose.yaml logs worker
+docker compose -f dokploy-compose.yaml logs postgres
 ```
 
 ### Database connection issues
+
 ```bash
 docker compose -f dokploy-compose.yaml exec postgres psql -U firsttimers_user -d firsttimers
 ```
 
 ### Restart a service
+
 ```bash
 docker compose -f dokploy-compose.yaml restart api
 ```
 
-### Full rebuild
+### Full rebuild (clear cache)
+
 ```bash
 docker compose -f dokploy-compose.yaml build --no-cache
 docker compose -f dokploy-compose.yaml up -d
 ```
 
-## Backup
+## Backup & Restore
 
 ### Database backup
+
 ```bash
 docker compose -f dokploy-compose.yaml exec postgres pg_dump -U firsttimers_user firsttimers > backup.sql
 ```
 
 ### Restore database
+
 ```bash
 cat backup.sql | docker compose -f dokploy-compose.yaml exec -T postgres psql -U firsttimers_user firsttimers
 ```
 
-## Updating
+## Updating the Application
 
 1. Push changes to your Git repository
 2. In Dokploy, click **Redeploy**
@@ -132,3 +205,15 @@ cat backup.sql | docker compose -f dokploy-compose.yaml exec -T postgres psql -U
    ```bash
    docker compose --profile migrate up migrate
    ```
+
+## Production Checklist
+
+Before going live:
+
+- [ ] Strong passwords generated for `POSTGRES_PASSWORD`, `JWT_SECRET`, `ENCRYPTION_KEY`
+- [ ] Domains configured with HTTPS
+- [ ] Database backups scheduled
+- [ ] Health endpoints accessible (`/health`, `/api/health`)
+- [ ] Brevo API key configured for email functionality
+- [ ] Initial database migration run
+- [ ] Test user accounts created via seed or manually

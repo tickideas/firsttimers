@@ -9,7 +9,7 @@ CE FirstTouch helps churches systematically welcome, track, and integrate first-
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Bun](https://bun.sh/) v1.3+
+- [Bun](https://bun.sh/) v1.3.8+
 - [Docker](https://docker.com/) & Docker Compose
 - PostgreSQL 17+ (or use Docker setup)
 - Redis (for background jobs)
@@ -153,10 +153,38 @@ GET /api/health  → API health
 
 ## 🚢 Deployment
 
-### Docker Production
+### Production (Dokploy)
+
+This project is configured for deployment on self-hosted Dokploy instances.
+
+```bash
+# Use the production compose file
+dokploy-compose.yaml
+```
+
+**Quick Deploy:**
+1. Create a Compose project in Dokploy
+2. Connect your Git repository
+3. Set compose file path to `dokploy-compose.yaml`
+4. Configure environment variables (see below)
+5. Deploy
+
+**Required Environment Variables:**
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_PASSWORD` | Database password |
+| `JWT_SECRET` | JWT signing key |
+| `ENCRYPTION_KEY` | Data encryption key |
+| `API_DOMAIN` | API subdomain (e.g., `api.example.com`) |
+| `WEB_DOMAIN` | Web subdomain (e.g., `app.example.com`) |
+
+See [DOKPLOY.md](./DOKPLOY.md) for complete deployment guide.
+
+### Docker Production (Local)
+
 ```bash
 # Build and deploy
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose --profile prod up -d
 ```
 
 ### Environment Variables
@@ -165,10 +193,21 @@ Key variables needed in production:
 - `DATABASE_URL` - PostgreSQL connection
 - `REDIS_URL` - Redis connection
 - `JWT_SECRET` - Authentication secret
-- `SMS_API_KEY` - SMS/WhatsApp service
-- `EMAIL_API_KEY` - Email service
+- `BREVO_API_KEY` - Email service (Brevo)
+- `ENCRYPTION_KEY` - Data encryption
 
 See `.env.example` for complete list.
+
+### Bun Version
+
+This project uses Bun v1.3.8. The version is pinned in all Dockerfiles to ensure lockfile compatibility. When upgrading Bun:
+
+```bash
+bun upgrade
+rm bun.lock && bun install
+# Update FROM oven/bun:X.X.X in all Dockerfiles
+git add bun.lock apps/*/Dockerfile && git commit -m "chore: upgrade bun"
+```
 
 ## 🤝 Contributing
 

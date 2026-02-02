@@ -53,13 +53,14 @@ Services will be available at:
 ## File Structure
 
 ```
-├── docker-compose.yaml         # Main Docker configuration
-├── docker-scripts.sh         # Control script
-├── .env.docker            # Docker environment variables
-├── prisma/init.sql          # Database initialization
-├── apps/api/Dockerfile       # API service
-├── apps/web/Dockerfile       # Web service  
-└── apps/worker/Dockerfile     # Worker service
+├── docker-compose.yaml         # Development Docker configuration
+├── dokploy-compose.yaml        # Production deployment (Dokploy)
+├── docker-scripts.sh           # Development control script
+├── .env.docker                 # Docker environment variables
+├── prisma/init.sql             # Database initialization
+├── apps/api/Dockerfile         # API service
+├── apps/web/Dockerfile         # Web service  
+└── apps/worker/Dockerfile      # Worker service
 ```
 
 ## Docker Compose Profiles
@@ -100,9 +101,47 @@ Services include health checks:
 - PostgreSQL: pg_isready
 - Redis: redis-cli ping
 
+## Bun Version Management
+
+The Dockerfiles are pinned to a specific Bun version (currently `1.3.8`). This ensures the `bun.lock` file matches between local development and Docker builds.
+
+### Upgrading Bun
+
+When upgrading Bun, you must update both locally and in the Dockerfiles:
+
+```bash
+# 1. Upgrade local bun
+bun upgrade
+
+# 2. Regenerate lockfile
+rm bun.lock && bun install
+
+# 3. Update all Dockerfiles (apps/api/Dockerfile, apps/web/Dockerfile, apps/worker/Dockerfile)
+# Change: FROM oven/bun:1.3.8 → FROM oven/bun:<new-version>
+
+# 4. Commit all changes
+git add bun.lock apps/*/Dockerfile
+git commit -m "chore: upgrade bun to <new-version>"
+```
+
+### Lockfile Requirements
+
+The `bun.lock` file **must be committed to git**. It's no longer in `.gitignore`.
+
+For monorepo builds, all `package.json` files must be copied before `bun install --frozen-lockfile`:
+- Root `package.json`
+- `apps/api/package.json`
+- `apps/web/package.json`
+- `apps/worker/package.json`
+- `packages/*/package.json`
+
 ## Notes
 
 - Hot reloading enabled for development
 - PostgreSQL and Redis data persists in named volumes
 - Extensions (citext, pg_trgm, pgcrypto) auto-installed
 - Perfect for testing the complete application locally
+
+## Production Deployment
+
+For production deployment to Dokploy, see [DOKPLOY.md](./DOKPLOY.md).
