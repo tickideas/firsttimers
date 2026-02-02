@@ -1,5 +1,5 @@
 # Development stage
-FROM oven/bun:1.3.0 AS development
+FROM oven/bun:1.3.8 AS development
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/web/package.json ./apps/web/
@@ -8,7 +8,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Production stage
-FROM oven/bun:1.3.0 AS builder
+FROM oven/bun:1.3.8 AS builder
 WORKDIR /app
 COPY --from=development /app ./
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -18,7 +18,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN cd apps/web && bun run build
 
 # Runtime stage
-FROM oven/bun:1.3.0 AS runner
+FROM oven/bun:1.3.8 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -35,7 +35,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 CMD ["bun", "run", "start"]
 
 # Development target
-FROM oven/bun:1.3.0 AS dev
+FROM oven/bun:1.3.8 AS dev
 WORKDIR /app
 COPY . .
 RUN bun install --frozen-lockfile
