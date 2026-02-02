@@ -19,6 +19,80 @@ const submitFormSchema = z.object({
 });
 
 export const registerPublicFormRoutes = (app: App) => {
+  // Public endpoint to get churches with active forms for general registration
+  app.get('/churches/public', async (c) => {
+    const prisma = c.get('prisma')
+
+    const churches = await prisma.church.findMany({
+      where: {
+        forms: {
+          some: { active: true }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        tenant: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
+
+    return c.json({ churches })
+  })
+
+  // Get active form for a church (for general registration page)
+  app.get('/churches/:churchSlug/active-form', async (c) => {
+    const prisma = c.get('prisma')
+    const churchSlug = c.req.param('churchSlug')
+
+    const church = await prisma.church.findFirst({
+      where: { slug: churchSlug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        tenantId: true,
+        forms: {
+          where: { active: true },
+          orderBy: { version: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            version: true,
+            schemaJson: true
+          }
+        }
+      }
+    })
+
+    if (!church) {
+      return c.json({ message: 'Church not found' }, 404)
+    }
+
+    const form = church.forms[0]
+    if (!form) {
+      return c.json({ message: 'No active form for this church' }, 404)
+    }
+
+    return c.json({
+      form: {
+        id: form.id,
+        version: form.version,
+        schema: form.schemaJson,
+        church: {
+          id: church.id,
+          name: church.name,
+          slug: church.slug
+        }
+      }
+    })
+  })
+
   app.get('/f/:churchSlug/:formId', zValidator('param', getFormSchema), async (c) => {
     const prisma = c.get('prisma')
     const { churchSlug, formId } = c.req.valid('param');

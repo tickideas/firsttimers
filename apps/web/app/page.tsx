@@ -1,174 +1,94 @@
-'use client';
+// apps/web/app/page.tsx
+// Landing page for CE FirstTouch platform
+// Provides two CTAs: first-timer registration and admin login
+// RELEVANT FILES: apps/web/app/register/page.tsx, apps/web/app/login/page.tsx, apps/web/app/layout.tsx
 
-import { useState, useEffect } from 'react';
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-interface FirstTimer {
-  id: string;
-  fullName: string;
-  email?: string;
-  phoneE164?: string;
-  status: string;
-  createdAt: string;
-  church: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-}
-
-export default function Dashboard() {
-  const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchFirstTimers();
-  }, []);
-
-  const fetchFirstTimers = async () => {
-    try {
-      const response = await fetch('/api/first-timers');
-      if (!response.ok) throw new Error('Failed to fetch first timers');
-      
-      const data = await response.json();
-      setFirstTimers(data.firstTimers || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'NEW': return 'bg-gray-100 text-gray-800';
-      case 'VERIFIED': return 'bg-green-100 text-green-800';
-      case 'CONTACTED': return 'bg-blue-100 text-blue-800';
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
-      case 'FOUNDATION_ENROLLED': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg">Loading first timers...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">First Timers Dashboard</h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Manage and track first-time visitors across your churches
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0">
-            <button
-              onClick={fetchFirstTimers}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Refresh
-            </button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
+      <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl font-bold text-indigo-600 mb-4">
+            CE FirstTouch
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Welcome to our church first-timer management platform. We help churches 
+            connect with and nurture first-time visitors on their faith journey.
+          </p>
         </div>
 
-        <div className="mt-8 flex flex-col">
-          <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contact Info
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Church
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Registered
-                      </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {firstTimers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                          No first timers found
-                        </td>
-                      </tr>
-                    ) : (
-                      firstTimers.map((firstTimer) => (
-                        <tr key={firstTimer.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{firstTimer.fullName}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {firstTimer.email && (
-                                <div className="text-gray-600">{firstTimer.email}</div>
-                              )}
-                              {firstTimer.phoneE164 && (
-                                <div className="text-gray-600">{firstTimer.phoneE164}</div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{firstTimer.church.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(firstTimer.status)}`}>
-                              {getStatusLabel(firstTimer.status)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(firstTimer.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a
-                              href={`/first-timers/${firstTimer.id}`}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              View
-                            </a>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+        <div className="grid md:grid-cols-2 gap-6 mt-12">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                  />
+                </svg>
               </div>
-            </div>
-          </div>
+              <CardTitle className="text-2xl">I&apos;m a First Timer</CardTitle>
+              <CardDescription className="text-base">
+                Visiting one of our churches for the first time? Register here and 
+                let us welcome you properly.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button asChild className="w-full" size="lg">
+                <Link href="/register">Register as First Timer</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <CardTitle className="text-2xl">Admin Login</CardTitle>
+              <CardDescription className="text-base">
+                Church administrators can sign in to manage first-timer records 
+                and follow-up activities.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button asChild variant="outline" className="w-full" size="lg">
+                <Link href="/login">Sign In to Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-16 text-center">
+          <p className="text-sm text-gray-500">
+            Helping churches connect with first-time visitors
+          </p>
         </div>
       </div>
     </div>
-  );
+  )
 }
