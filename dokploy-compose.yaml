@@ -2,9 +2,8 @@
 # Deploy as a single "Compose" project in Dokploy
 #
 # Required environment variables:
-#   POSTGRES_PASSWORD - Database password (same value used in DATABASE_URL)
-#   DATABASE_URL - Full connection string: postgresql://firsttimers_user:PASSWORD@postgres:5432/firsttimers
-#   JWT_SECRET - JWT signing key
+#   POSTGRES_PASSWORD - Database password
+#   JWT_SECRET - JWT signing key (min 32 chars)
 #   ENCRYPTION_KEY - Data encryption key
 #   API_DOMAIN - API subdomain (e.g., api.example.com)
 #   WEB_DOMAIN - Web subdomain (e.g., app.example.com)
@@ -54,7 +53,7 @@ services:
       target: runner
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
+      DATABASE_URL: postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
@@ -84,11 +83,11 @@ services:
       target: runner
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
+      DATABASE_URL: postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       NODE_ENV: production
     depends_on:
       postgres:
@@ -129,11 +128,11 @@ services:
       dockerfile: ./apps/api/Dockerfile
       target: development
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers}
+      DATABASE_URL: postgresql://firsttimers_user:${POSTGRES_PASSWORD}@postgres:5432/firsttimers
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["bun", "run", "prisma:migrate:deploy"]
+    command: ["bunx", "prisma", "migrate", "deploy"]
     restart: "no"
     profiles:
       - migrate
