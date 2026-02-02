@@ -180,6 +180,12 @@ dokploy-compose.yaml
 
 See [DOKPLOY.md](./DOKPLOY.md) for complete deployment guide.
 
+### Troubleshooting (Dokploy)
+
+- If the API logs show database auth failures but `psql` works, the hostname `postgres`
+  may be resolving to a different container on a shared network. Use the internal
+  alias `ft-postgres` in `dokploy-compose.yaml` and redeploy.
+
 ### Docker Production (Local)
 
 ```bash
@@ -193,6 +199,7 @@ Key variables needed in production:
 - `DATABASE_URL` - PostgreSQL connection
 - `REDIS_URL` - Redis connection
 - `JWT_SECRET` - Authentication secret
+- `CORS_ORIGINS` - Comma-separated allowed origins
 - `BREVO_API_KEY` - Email service (Brevo)
 - `ENCRYPTION_KEY` - Data encryption
 

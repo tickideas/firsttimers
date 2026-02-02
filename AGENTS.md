@@ -108,3 +108,18 @@ Ensure changes align with current phase:
 • Environment variables documented
 • Docker build passes
 • Coolify deployment tested
+
+## Lessons Learned
+
+- In Dokploy with multiple compose projects, the hostname `postgres` can resolve to a
+  different database container. Use an internal alias like `ft-postgres` and reference
+  it in `DATABASE_URL`.
+- Changing `POSTGRES_PASSWORD` after the database volume is initialized does not
+  update the existing role password. Use `ALTER USER` or recreate the volume.
+- Production CORS must be configured via `CORS_ORIGINS` (defaults allow only localhost).
+
+## Known Issues
+
+- Hostname collisions on shared Dokploy networks can cause API auth failures if
+  `DATABASE_URL` points to `postgres` instead of the intended DB container.
+- Missing `CORS_ORIGINS` in production will block browser access to the API.

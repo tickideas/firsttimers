@@ -59,6 +59,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       RLS_SUPER_ROLE: ${RLS_SUPER_ROLE:-postgres}
       NODE_ENV: production

@@ -58,12 +58,17 @@ In Dokploy, add these environment variables:
 | `API_DOMAIN` | Yes | API subdomain (e.g., `api.example.com`) |
 | `WEB_DOMAIN` | Yes | Web app subdomain (e.g., `app.example.com`) |
 | `BREVO_API_KEY` | No | Brevo email API key |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins (e.g., `https://*.lwukz1.church`) |
 
-**Note:** `DATABASE_URL` is now automatically constructed from `POSTGRES_PASSWORD`. You no longer need to set it separately.
+**Note:** `DATABASE_URL` is now automatically constructed from `POSTGRES_PASSWORD`.
+You no longer need to set it separately.
 | `POSTGRES_DB` | No | Database name (default: `firsttimers`) |
 | `POSTGRES_USER` | No | Database user (default: `firsttimers_user`) |
 
-**Important:** If your Dokploy instance has multiple compose projects, the hostname `postgres` can collide across networks. This guide uses the internal alias `ft-postgres` to ensure the API and worker always reach the correct database container.
+**Important:** If your Dokploy instance has multiple compose projects, the hostname
+`postgres` can collide across networks. This guide uses the internal alias
+`ft-postgres` to ensure the API and worker always reach the correct database
+container.
 
 ### 3. Configure Domains in Dokploy
 
