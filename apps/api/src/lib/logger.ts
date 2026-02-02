@@ -1,18 +1,23 @@
-import pino from 'pino';
+import pino from 'pino'
 
-const level = process.env.LOG_LEVEL ?? 'info';
+const level = process.env.LOG_LEVEL ?? 'info'
+const isDev = process.env.NODE_ENV === 'development'
 
-export const logger = pino({
-  name: 'firsttimers-api',
-  level,
-  transport:
-    process.env.NODE_ENV === 'development'
-      ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            ignore: 'pid,hostname'
-          }
+// In production, use simple JSON logging (no pino-pretty)
+// In development, use pino-pretty for readable output
+export const logger = isDev
+  ? pino({
+      name: 'firsttimers-api',
+      level,
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          ignore: 'pid,hostname'
         }
-      : undefined
-});
+      }
+    })
+  : pino({
+      name: 'firsttimers-api',
+      level
+    })
