@@ -63,6 +63,8 @@ In Dokploy, add these environment variables:
 | `POSTGRES_DB` | No | Database name (default: `firsttimers`) |
 | `POSTGRES_USER` | No | Database user (default: `firsttimers_user`) |
 
+**Important:** If your Dokploy instance has multiple compose projects, the hostname `postgres` can collide across networks. This guide uses the internal alias `ft-postgres` to ensure the API and worker always reach the correct database container.
+
 ### 3. Configure Domains in Dokploy
 
 1. Go to your compose service > Domains
@@ -170,6 +172,13 @@ docker compose -f dokploy-compose.yaml logs postgres
 
 ```bash
 docker compose -f dokploy-compose.yaml exec postgres psql -U firsttimers_user -d firsttimers
+
+If the API is failing auth but `psql` works, verify the API is resolving the right database host:
+
+```bash
+docker compose -f dokploy-compose.yaml exec api getent hosts ft-postgres
+docker compose -f dokploy-compose.yaml exec api printenv DATABASE_URL
+```
 ```
 
 ### Restart a service
