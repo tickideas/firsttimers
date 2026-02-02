@@ -3,7 +3,11 @@ FROM oven/bun:1.3.8 AS development
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
-COPY packages ./packages
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/web/package.json ./apps/web/
+COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
+COPY packages/ui/package.json ./packages/ui/
 COPY prisma ./prisma
 RUN bun install --frozen-lockfile
 COPY . .
