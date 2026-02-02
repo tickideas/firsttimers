@@ -97,6 +97,8 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       target: runner
+      args:
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
