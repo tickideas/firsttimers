@@ -1,0 +1,142 @@
+# Dokploy Production Compose
+# Deploy as a single "Compose" project in Dokploy
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-firsttimers}
+      POSTGRES_USER: ${POSTGRES_USER:-firsttimers_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-firsttimers_user} -d ${POSTGRES_DB:-firsttimers}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: runner
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      RLS_SUPER_ROLE: ${RLS_SUPER_ROLE:-postgres}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${API_DOMAIN:?API_DOMAIN is required}`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=3001"
+    networks:
+      - internal
+      - dokploy-network
+
+  # Worker Service
+  worker:
+    build:
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
+      target: runner
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: runner
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+      NODE_ENV: production
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`${WEB_DOMAIN:?WEB_DOMAIN is required}`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
+    networks:
+      - internal
+      - dokploy-network
+
+  # Database Migrations (run once)
+  migrate:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-firsttimers}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["bun", "run", "prisma:migrate:deploy"]
+    restart: "no"
+    profiles:
+      - migrate
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+    driver: bridge
+  dokploy-network:
+    external: true
