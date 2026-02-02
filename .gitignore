@@ -1,10 +1,6 @@
 # dependencies
 node_modules
 
-# bun
-bun.lockb
-bun.lock
-
 # build outputs
 .next
 dist
