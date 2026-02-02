@@ -1,125 +1,166 @@
 # First Timers Management Platform
 
-This is the First Timers Management Platform. A modern church management system for tracking first-time visitors, follow-ups, foundation school, and department onboarding across multiple tenant organizations.
+Turborepo monorepo for church first-timer management. Bun runtime, Next.js frontend, Hono API, BullMQ workers.
 
-## Core Commands
+## Quick Start
 
-• Type-check and lint: `bun run check`
-• Auto-fix style: `bun run lint`
-• Run tests: `bun run test`
-• Start dev servers: `bun run dev` (or `./docker-scripts.sh up` for Docker with full stack)
-• Build for production: `bun run build`
-• Database migrations: `bun run prisma:migrate`
-• Docker local stack: `./docker-scripts.sh up`
-• Docker tests: run tests inside containers
+```bash
+# Install dependencies
+bun install
 
-## Project Layout
+# Start dev servers (all apps)
+bun run dev
 
-```
-├─ apps/
-│  ├─ web/ → Next.js 15 + React 19 + TypeScript frontend
-│  ├─ api/ → Hono + Bun REST API
-│  └─ worker/ → BullMQ background jobs
-├─ packages/
-│  ├─ types/ → Shared Zod schemas
-│  ├─ ui/ → Shared UI components
-│  └─ config/ → Configuration utilities
-└─ prisma/ → Database schema + migrations
+# Or use Docker for full stack
+./docker-scripts.sh up
+
+# Before committing
+bun run check
 ```
 
-• Frontend code lives **only** in `apps/web/`
-• Backend code lives **only** in `apps/api/`
-• Worker code lives **only** in `apps/worker/`
-• Shared types in `packages/types/`
-• Shared UI in `packages/ui/`
+## Project Structure
 
-## Development Patterns & Constraints
+| Package | Path | Description |
+|---------|------|-------------|
+| Web | `apps/web/` | Next.js 15 + React 19 frontend → [see AGENTS.md](apps/web/AGENTS.md) |
+| API | `apps/api/` | Hono REST API with JWT auth → [see AGENTS.md](apps/api/AGENTS.md) |
+| Worker | `apps/worker/` | BullMQ background jobs → [see AGENTS.md](apps/worker/AGENTS.md) |
+| Types | `packages/types/` | Shared Zod schemas → [see AGENTS.md](packages/types/AGENTS.md) |
+| UI | `packages/ui/` | Shared React components → [see AGENTS.md](packages/ui/AGENTS.md) |
+| Config | `packages/config/` | Shared ESLint/TS configs |
 
-### Tech Stack
-• **Runtime**: Bun v1.3 exclusively
-• **Frontend**: Next.js App Router + React Server Components
-• **Backend**: Hono + TypeScript
-• **Database**: Prisma ORM + PostgreSQL 17 with RLS
-• **Queue**: BullMQ + Redis
+## Universal Conventions
 
-### Coding Style
-• TypeScript strict mode, single quotes, trailing commas, no semicolons
-• 100-char line limit, 2-space indent (4-space for YAML/JSON/MD)
-• Use interfaces for public APIs; avoid `@ts-ignore`
-• Zod validation for all input/output
-• Postgres Row-Level Security for multi-tenancy
-• JWT authentication with RBAC
+- **Runtime**: Bun v1.3+ exclusively
+- **Style**: TypeScript strict, single quotes, trailing commas, no semicolons, 100-char limit
+- **Commits**: Conventional format (`feat:`, `fix:`, `test:`, `docs:`)
+- **Branches**: `feature/description` or `bugfix/description` from `main`
+- **PRs**: Require `bun run check` passing, proof artifact, no new deps without review
 
-### Data & Security
-• Tenant isolation via `tenant_id` on all core tables
-• Phone numbers: E.164 normalization required
-• Email: citext for case-insensitive matching
-• GDPR compliance: right to erasure/anonymization
-• Audit logging for all PII access
+## Security & Secrets
 
-### Testing Strategy
-• Unit tests for Zod schemas and services
-• Integration tests against real Postgres/Redis
-• E2E with Playwright for user workflows
-• Load testing for 100 concurrent churches
+- NEVER commit `.env` files or API keys
+- Secrets go in `.env` (gitignored) - see `.env.example` for template
+- PII access requires audit logging
+- All tenant data isolated via `tenant_id` + RLS
 
-## Git Workflow Essentials
+## Database
 
-1. Branch from `main` with descriptive names: `feature/church-onboarding` or `bugfix/phone-validation`
-2. Run `bun run check` locally **before** committing
-3. Force pushes **allowed only** on your branch using `git push --force-with-lease`
-4. Keep commits atomic; prefer checkpoints (`feat: add verification queue`, `test: phone normalization`)
-5. Docker validation: ensure `./docker-scripts.sh up` works
+```bash
+# Schema: prisma/schema.prisma
+bun run prisma:migrate   # Create migration
+bun run prisma:push      # Quick schema push (dev only)
+bun run prisma:studio    # Visual editor
+```
 
-## Evidence Required for Every PR
+## Quick Find Commands
 
-A pull request is reviewable when it includes:
+```bash
+# Find component
+rg "export (function|const)" apps/web/app --type tsx
 
-- All tests green (`bun run test`)
-- Lint & type check pass (`bun run check`)
-- Diff confined to agreed paths (see Project Layout)
-- **Proof artifact**
-  - Bug fix → failing test added first, now passes
-  - Feature → new tests or workflow demonstration
-  - GDPR change → privacy impact assessment
-- One-paragraph description covering tenant impact & audit implications
-- **No new runtime dependencies** without architecture review
+# Find API route
+rg "register.*Routes" apps/api/src/routes --type ts
 
-## Phase Alignment
+# Find Zod schema
+rg "z\.(object|enum|string)" packages/types --type ts
 
-Ensure changes align with current phase:
+# Find test
+find . -name "*.test.ts" -o -name "*.spec.ts"
+```
 
-**Phase 1 – MVP** (Current): Public forms, verification, basic follow-up
-**Phase 2**: Foundation school, department onboarding
-**Phase 3**: Form builder v2, scheduled reports
-**Phase 4**: Privacy tooling, performance optimization
+## Definition of Done
 
-## Special Constraints
+- [ ] `bun run check` passes (typecheck + lint)
+- [ ] Tests pass (`bun run test`)
+- [ ] No secrets in diff
+- [ ] Proof artifact attached (test output, screenshot, etc.)
 
-• No breaking changes to `/f/{churchSlug}/{formId}` endpoints
-• Tenant data must never cross tenant boundaries
-• All form submissions require consent tracking
-• Report exports must include audit trail
-• Phone/email validation follows Phase 1 spec
+## Workflow Orchestration
 
-## Deployment Readiness
+### Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
 
-• Health endpoints functional (`/health`, `/api/health`)
-• Environment variables documented
-• Docker build passes
-• Coolify deployment tested
+### Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
 
-## Lessons Learned
+### Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
 
-- In Dokploy with multiple compose projects, the hostname `postgres` can resolve to a
-  different database container. Use an internal alias like `ft-postgres` and reference
-  it in `DATABASE_URL`.
-- Changing `POSTGRES_PASSWORD` after the database volume is initialized does not
-  update the existing role password. Use `ALTER USER` or recreate the volume.
-- Production CORS must be configured via `CORS_ORIGINS` (defaults allow only localhost).
+### Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
 
-## Known Issues
+### Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes – don't over-engineer
 
-- Hostname collisions on shared Dokploy networks can cause API auth failures if
-  `DATABASE_URL` points to `postgres` instead of the intended DB container.
-- Missing `CORS_ORIGINS` in production will block browser access to the API.
+### Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests – then resolve them
+- Zero context switching required from the user
+
+## Task Management
+
+1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. **Track Progress**: Mark items complete as you go
+4. **Explain Changes**: High-level summary at each step
+5. **Document Results**: Add review section to `tasks/todo.md`
+6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+
+## Core Principles
+
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+
+## Header Comments (MANDATORY)
+
+EVERY file MUST start with 4 lines of comments:
+1. Exact file location in codebase
+2. Clear description of what this file does
+3. Clear description of WHY this file exists
+4. RELEVANT FILES: comma-separated list of 2–4 most relevant files
+
+## Git Workflow Requirements (MANDATORY)
+
+Before writing ANY code, you MUST:
+1. **Create a feature branch: `git checkout -b feature/[name]`**
+2. **Commit changes FREQUENTLY (every file/component)**
+3. **Never work on the main branch directly**
+
+**ALWAYS commit after each new function is added to the codebase**
+
+## Code Quality Checks (MANDATORY)
+
+**ALWAYS run the following before completing any task:**
+1. Use IDE diagnostics tool to check for linting and type errors
+2. Fix any linting or type errors before considering the task complete
+3. Do this for any file you create or modify
+
+## Development Standards
+
+- Always write secure, best practice code
+- Always write tests for each function created
+- Iterate the function based on test results
+- Delete test scripts once tests pass
+- Always commit after each new function
+
+## Deployment Notes
+
+- Health endpoints: `/health` (API), `/api/health` (web proxy)
+- CORS origins must be set via `CORS_ORIGINS` in production
+- Database URL should use `ft-postgres` hostname in Dokploy (not `postgres`)
+- See `docs/DOKPLOY.md` and `docs/DOCKER.md` for deployment details
