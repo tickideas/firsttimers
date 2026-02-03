@@ -44,17 +44,12 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           {/* Hero Content */}
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-              Welcome to Our Community
-            </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
               We&apos;re Glad
               <span className="text-blue-600"> You&apos;re Here</span>
             </h1>
-            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Whether it&apos;s your first time or you&apos;re returning, we want to connect with you.
-              Let us know you&apos;re here so we can welcome you properly and help you grow in faith.
+            <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+              Christ Embassy welcomes first-time visitors with a warm, personal experience designed to help you feel at home and connected from the very beginning. You are not just a visitor—you are now part of a vision that extends beyond a traditional church.
             </p>
           </div>
 
@@ -83,15 +78,14 @@ export default function LandingPage() {
                   I&apos;m a First Timer
                 </h2>
                 <p className="text-slate-600 mb-6 leading-relaxed">
-                  Visiting one of our churches for the first time? We&apos;d love to meet you!
-                  Register here and our team will reach out to welcome you.
+                  Visiting one of our churches for the first time? We&apos;d love to meet you! Kindly complete this form to help us get to know you better.
                 </p>
                 <Button
                   asChild
                   size="lg"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-200"
                 >
-                  <Link href="/register">Register as First Timer</Link>
+                  <Link href="/register">Complete First Timer&apos;s Form</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -120,7 +114,7 @@ export default function LandingPage() {
                 </h2>
                 <p className="text-slate-600 mb-6 leading-relaxed">
                   Manage first-timer records, track follow-ups, and coordinate
-                  your church&apos;s welcome ministry from your dashboard.
+                  your church&apos;s first-timers ministry from your dashboard.
                 </p>
                 <Button
                   asChild
