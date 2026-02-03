@@ -1,9 +1,12 @@
+// File: apps/web/app/(admin)/first-timers/page.tsx
+// Description: First-timers list page with search, filtering, and pagination
+// Why: Main interface for managing and viewing all first-time visitors
+// RELEVANT FILES: apps/web/hooks/use-first-timers.ts, apps/web/components/ui/table.tsx
+
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
-import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +27,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useFirstTimers } from "@/hooks/use-first-timers";
+import {
   Search,
   Filter,
   ChevronLeft,
@@ -32,25 +42,7 @@ import {
   MoreHorizontal,
   UserPlus,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/utils";
-
-interface FirstTimer {
-  id: string;
-  fullName: string;
-  email: string | null;
-  phoneE164: string | null;
-  status: string;
-  createdAt: string;
-  church?: {
-    name: string;
-  };
-}
 
 const PIPELINE_STAGES = [
   "NEW",
@@ -79,57 +71,27 @@ const stageColors: Record<string, "default" | "secondary" | "success" | "warning
 };
 
 export default function FirstTimersPage() {
-  const { token } = useAuth();
-  const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const limit = 10;
 
-  const fetchFirstTimers = useCallback(async () => {
-    if (!token) return;
+  const { firstTimers, pagination, isLoading } = useFirstTimers({
+    page,
+    limit,
+    search,
+    statusFilter,
+  });
 
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (search) {
-        params.set("search", search);
-      }
-      if (statusFilter && statusFilter !== "all") {
-        params.set("status", statusFilter);
-      }
-
-      const response = await api.get<{
-        firstTimers: FirstTimer[];
-        pagination: { total: number; page: number; limit: number; pages: number };
-      }>(`/api/first-timers?${params}`, { token });
-
-      setFirstTimers(response.firstTimers || []);
-      setTotal(response.pagination?.total || 0);
-      setTotalPages(response.pagination?.pages || 1);
-    } catch (error) {
-      console.error("Failed to fetch first timers:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, page, search, statusFilter]);
-
-  useEffect(() => {
-    fetchFirstTimers();
-  }, [fetchFirstTimers]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchFirstTimers();
-  };
+  }, []);
+
+  const handleStatusChange = useCallback((value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -161,13 +123,7 @@ export default function FirstTimersPage() {
                 />
               </div>
             </form>
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value);
-                setPage(1);
-              }}
-            >
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by status" />
@@ -189,7 +145,7 @@ export default function FirstTimersPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {total} First Timer{total !== 1 ? "s" : ""}
+            {pagination.total} First Timer{pagination.total !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -257,7 +213,7 @@ export default function FirstTimersPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label="More options">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -280,7 +236,7 @@ export default function FirstTimersPage() {
               <div className="flex items-center justify-between mt-4">
                 <p className="text-sm text-gray-500">
                   Showing {(page - 1) * limit + 1} to{" "}
-                  {Math.min(page * limit, total)} of {total}
+                  {Math.min(page * limit, pagination.total)} of {pagination.total}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -288,17 +244,19 @@ export default function FirstTimersPage() {
                     size="sm"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
+                    aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-sm text-gray-600">
-                    Page {page} of {totalPages}
+                    Page {page} of {pagination.pages}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                    disabled={page >= pagination.pages}
+                    aria-label="Next page"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>

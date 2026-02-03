@@ -1,12 +1,21 @@
+// File: apps/web/app/(admin)/layout.tsx
+// Description: Admin layout with sidebar, header, and authentication check
+// Why: Provides consistent admin UI layout with authentication gate - AuthProvider is in root providers.tsx
+// RELEVANT FILES: apps/web/app/providers.tsx, apps/web/lib/auth.tsx, apps/web/components/admin/sidebar.tsx
+
 "use client";
 
 import { useState } from "react";
-import { AuthProvider, useRequireAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 import { Sidebar } from "@/components/admin/sidebar";
 import { Header } from "@/components/admin/header";
 import { cn } from "@/lib/utils";
 
-function AdminLayoutContent({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isLoading, isAuthenticated } = useRequireAuth();
 
@@ -22,7 +31,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return null; // useRequireAuth will redirect
+    return null;
   }
 
   return (
@@ -41,17 +50,5 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         <main className="p-6">{children}</main>
       </div>
     </div>
-  );
-}
-
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <AuthProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
-    </AuthProvider>
   );
 }

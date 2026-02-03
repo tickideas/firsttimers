@@ -1,12 +1,15 @@
+// File: apps/web/app/(admin)/dashboard/page.tsx
+// Description: Admin dashboard with statistics and recent first-timers overview
+// Why: Main admin landing page showing key metrics and recent activity
+// RELEVANT FILES: apps/web/hooks/use-dashboard.ts, apps/web/components/admin/stats-card.tsx
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth";
-import { api } from "@/lib/api";
 import { StatsCard } from "@/components/admin/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useDashboard } from "@/hooks/use-dashboard";
 import {
   Users,
   UserPlus,
@@ -17,13 +20,6 @@ import {
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
-
-interface DashboardStats {
-  totalFirstTimers: number;
-  newThisWeek: number;
-  pendingFollowUps: number;
-  foundationEnrolled: number;
-}
 
 const stageColors: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
   NEW: "default",
@@ -39,55 +35,7 @@ const stageColors: Record<string, "default" | "secondary" | "success" | "warning
 };
 
 export default function DashboardPage() {
-  const { token } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalFirstTimers: 0,
-    newThisWeek: 0,
-    pendingFollowUps: 0,
-    foundationEnrolled: 0,
-  });
-  const [recentFirstTimers, setRecentFirstTimers] = useState<Array<{
-    id: string;
-    fullName: string;
-    status: string;
-    createdAt: string;
-  }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchDashboardData() {
-      if (!token) return;
-
-      try {
-        // Fetch stats and recent first-timers in parallel
-        const [statsResponse, recentResponse] = await Promise.all([
-          api.get<{
-            totalFirstTimers: number;
-            newThisWeek: number;
-            pendingFollowUps: number;
-            foundationEnrolled: number;
-          }>("/api/first-timers/stats", { token }),
-          api.get<{
-            firstTimers: Array<{
-              id: string;
-              fullName: string;
-              status: string;
-              createdAt: string;
-            }>;
-          }>("/api/first-timers?limit=5", { token }),
-        ]);
-
-        setStats(statsResponse);
-        setRecentFirstTimers(recentResponse.firstTimers || []);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchDashboardData();
-  }, [token]);
+  const { stats, recentFirstTimers, isLoading } = useDashboard();
 
   if (isLoading) {
     return (
