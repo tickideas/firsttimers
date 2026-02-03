@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts | bunx pino-pretty",
-    "build": "bun build src/index.ts --target bun --outdir dist --external @prisma/client --external @sentry/bun --external @opentelemetry/api",
+    "build": "bun build src/index.ts --target bun --outdir dist --external @prisma/client --external @prisma/client-runtime-utils --external @sentry/bun --external @opentelemetry/api",
     "start": "bun run dist/index.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",

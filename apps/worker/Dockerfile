@@ -24,6 +24,7 @@ FROM oven/bun:1.3.8 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.bun ./.bun
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/apps/worker/dist ./dist
