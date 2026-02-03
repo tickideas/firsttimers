@@ -24,12 +24,22 @@ FROM oven/bun:1.3.8 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.bun ./.bun
+
+# Copy package files and install production dependencies
+COPY package.json bun.lock ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/web/package.json ./apps/web/
+COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
+COPY packages/ui/package.json ./packages/ui/
+COPY prisma ./prisma
+RUN bun install --frozen-lockfile --production
+RUN bunx prisma generate
+
+# Copy built application
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./package.json
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
