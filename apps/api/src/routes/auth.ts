@@ -1,15 +1,30 @@
+// File: apps/api/src/routes/auth.ts
+// Description: Authentication routes including login, logout, and current user endpoints
+// Why: Handles user authentication with JWT tokens and secure cookie management
+// RELEVANT FILES: apps/api/src/services/jwt.ts, apps/api/src/utils/password.ts, apps/api/src/middleware/auth.ts
+
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, deleteCookie } from 'hono/cookie';
+import { rateLimiter } from 'hono-rate-limiter';
 
 import { signAccessToken, signRefreshToken } from '../services/jwt.js';
 import { verifyPassword } from '../utils/password.js';
+import { requireAuth } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   tenantSlug: z.string().min(1)
+});
+
+// Rate limiter for auth endpoints - prevents brute force attacks
+const authLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5, // 5 attempts per window
+  standardHeaders: true,
+  keyGenerator: (c) => c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
 });
 
 export const registerAuthRoutes = (app: App) => {
@@ -28,7 +43,7 @@ export const registerAuthRoutes = (app: App) => {
     return c.json({ data: tenants });
   });
 
-  app.post('/auth/login', zValidator('json', loginSchema), async (c) => {
+  app.post('/auth/login', authLimiter, zValidator('json', loginSchema), async (c) => {
     const prisma = c.get('prisma')
     const { email, password, tenantSlug } = c.req.valid('json');
 
@@ -94,26 +109,13 @@ export const registerAuthRoutes = (app: App) => {
     return c.json({ message: 'Logged out successfully' });
   });
 
-  // Get current user endpoint
-  app.get('/auth/me', async (c) => {
-    const authHeader = c.req.header('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  // Get current user endpoint - uses requireAuth middleware to avoid duplicate JWT verification
+  app.get('/auth/me', requireAuth(), async (c) => {
+    const user = c.get('authUser')!
+    const prisma = c.get('prisma')
 
-    if (!token) {
-      return c.json({ message: 'Unauthorized' }, 401);
-    }
-
-    // Verify token and return user
-    const { verifyJwt } = await import('../services/jwt.js');
-    const payload = await verifyJwt(token);
-
-    if (!payload) {
-      return c.json({ message: 'Invalid token' }, 401);
-    }
-
-    const prisma = c.get('prisma');
-    const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
+    const userDetails = await prisma.user.findUnique({
+      where: { id: user.sub },
       select: {
         id: true,
         email: true,
@@ -127,17 +129,17 @@ export const registerAuthRoutes = (app: App) => {
       }
     });
 
-    if (!user) {
+    if (!userDetails) {
       return c.json({ message: 'User not found' }, 404);
     }
 
     return c.json({
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        tenantId: user.tenantId,
-        roles: user.assignments.map(a => a.role.key)
+        id: userDetails.id,
+        email: userDetails.email,
+        name: userDetails.name,
+        tenantId: userDetails.tenantId,
+        roles: userDetails.assignments.map(a => a.role.key)
       }
     });
   });

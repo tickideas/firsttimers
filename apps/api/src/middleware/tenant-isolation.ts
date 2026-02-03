@@ -1,3 +1,8 @@
+// File: apps/api/src/middleware/tenant-isolation.ts
+// Description: Middleware that enforces tenant isolation by automatically injecting tenantId into all database queries
+// Why: Ensures multi-tenant data isolation at the query level without manual tenantId handling in every route
+// RELEVANT FILES: apps/api/src/lib/prisma.ts, apps/api/src/types/context.ts
+
 import type { Context, Next } from 'hono'
 import type { PrismaClient } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
@@ -19,15 +24,12 @@ const TENANT_ISOLATED_MODELS = new Set([
   'VerificationCode',
 ])
 
-export const tenantIsolation = async (c: Context<AppBindings>, next: Next) => {
-  const user = c.get('authUser')
+// Cache extended clients per tenant to avoid creating new instances on every request
+const tenantPrismaCache = new Map<string, PrismaClient>()
 
-  if (!user) {
-    c.set('prisma', prisma)
-    return next()
-  }
-
-  const tenantId = user.tenantId
+const createTenantPrisma = (tenantId: string): PrismaClient => {
+  const cached = tenantPrismaCache.get(tenantId)
+  if (cached) return cached
 
   const tenantPrisma = prisma.$extends({
     query: {
@@ -36,41 +38,37 @@ export const tenantIsolation = async (c: Context<AppBindings>, next: Next) => {
           return query(args)
         }
 
-        const argsWithTenant = args as Record<string, unknown>
+        const argsWithTenant = { ...(args as Record<string, unknown>) }
 
-        if (
-          operation === 'findMany' ||
-          operation === 'findFirst' ||
-          operation === 'findUnique' ||
-          operation === 'findFirstOrThrow' ||
-          operation === 'findUniqueOrThrow' ||
-          operation === 'count' ||
-          operation === 'aggregate' ||
-          operation === 'groupBy' ||
-          operation === 'deleteMany' ||
-          operation === 'updateMany'
-        ) {
-          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
-        }
-
-        if (operation === 'update' || operation === 'delete') {
-          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
-        }
-
-        if (operation === 'create') {
-          argsWithTenant.data = { ...argsWithTenant.data as object, tenantId }
-        }
-
-        if (operation === 'createMany') {
-          const data = argsWithTenant.data
-          if (Array.isArray(data)) {
-            argsWithTenant.data = data.map((item: object) => ({ ...item, tenantId }))
-          }
+        switch (operation) {
+          case 'findMany':
+          case 'findFirst':
+          case 'findUnique':
+          case 'findFirstOrThrow':
+          case 'findUniqueOrThrow':
+          case 'count':
+          case 'aggregate':
+          case 'groupBy':
+          case 'deleteMany':
+          case 'updateMany':
+          case 'update':
+          case 'delete':
+          case 'upsert':
+            argsWithTenant.where = { ...(argsWithTenant.where as object), tenantId }
+            break
+          case 'create':
+            argsWithTenant.data = { ...(argsWithTenant.data as object), tenantId }
+            break
+          case 'createMany':
+            const data = argsWithTenant.data
+            if (Array.isArray(data)) {
+              argsWithTenant.data = data.map((item: object) => ({ ...item, tenantId }))
+            }
+            break
         }
 
         if (operation === 'upsert') {
-          argsWithTenant.where = { ...argsWithTenant.where as object, tenantId }
-          argsWithTenant.create = { ...argsWithTenant.create as object, tenantId }
+          argsWithTenant.create = { ...(argsWithTenant.create as object), tenantId }
         }
 
         return query(argsWithTenant)
@@ -78,6 +76,26 @@ export const tenantIsolation = async (c: Context<AppBindings>, next: Next) => {
     },
   }) as unknown as PrismaClient
 
-  c.set('prisma', tenantPrisma)
+  // Limit cache size to prevent memory leaks (LRU eviction)
+  if (tenantPrismaCache.size > 100) {
+    const firstKey = tenantPrismaCache.keys().next().value
+    if (firstKey) {
+      tenantPrismaCache.delete(firstKey)
+    }
+  }
+
+  tenantPrismaCache.set(tenantId, tenantPrisma)
+  return tenantPrisma
+}
+
+export const tenantIsolation = async (c: Context<AppBindings>, next: Next) => {
+  const user = c.get('authUser')
+
+  if (!user) {
+    c.set('prisma', prisma)
+    return next()
+  }
+
+  c.set('prisma', createTenantPrisma(user.tenantId))
   return next()
 }

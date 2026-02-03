@@ -1,7 +1,13 @@
+// File: apps/api/src/app.ts
+// Description: Hono application factory with middleware setup and route registration
+// Why: Centralizes app configuration, security headers, CORS, and error handling
+// RELEVANT FILES: apps/api/src/index.ts, apps/api/src/middleware/*.ts, apps/api/src/routes/*.ts
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
+import { ZodError } from 'zod';
 
 import { env } from './config/env.js';
 import { prisma } from './lib/prisma.js';
@@ -93,11 +99,14 @@ const configuredCorsOrigins = env.CORS_ORIGINS
   ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : defaultCorsOrigins
 
+// Pre-build CORS resolver to avoid parsing on every request
+const corsOriginResolver = buildCorsOriginResolver(configuredCorsOrigins)
+
 export const createApp = () => {
   const app = new Hono<AppBindings>();
 
   app.use('*', cors({
-    origin: buildCorsOriginResolver(configuredCorsOrigins),
+    origin: corsOriginResolver,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -123,6 +132,40 @@ export const createApp = () => {
   registerDepartmentRoutes(app);
 
   app.get('/', (c) => c.json({ status: 'ok' }));
+
+  // Global error handler
+  app.onError((err, c) => {
+    const requestId = c.get('requestId')
+
+    if (err instanceof ZodError) {
+      return c.json({
+        message: 'Validation error',
+        errors: err.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      }, 400)
+    }
+
+    // Handle Prisma errors
+    if (err instanceof Error && err.name === 'PrismaClientKnownRequestError') {
+      const prismaError = err as unknown as { code: string }
+
+      switch (prismaError.code) {
+        case 'P2002':
+          return c.json({ message: 'Resource already exists' }, 409)
+        case 'P2003':
+          return c.json({ message: 'Referenced resource not found' }, 400)
+        case 'P2025':
+          return c.json({ message: 'Resource not found' }, 404)
+      }
+    }
+
+    console.error({ err, requestId }, 'Unhandled error')
+
+    return c.json({
+      message: process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : err.message
+    }, 500)
+  })
 
   return app;
 };
