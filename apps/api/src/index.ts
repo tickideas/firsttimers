@@ -10,15 +10,6 @@ const port = env.PORT;
 if (import.meta.main) {
   initTelemetry().catch((error) => logger.error({ err: error }, 'Telemetry init failed'));
 
-  // Log database connection info (mask password)
-  const dbUrl = new URL(env.DATABASE_URL);
-  logger.info({
-    dbHost: dbUrl.hostname,
-    dbPort: dbUrl.port,
-    dbName: dbUrl.pathname.slice(1),
-    dbUser: dbUrl.username
-  }, 'Database connection config');
-
   Bun.serve({
     port,
     fetch: app.fetch,
