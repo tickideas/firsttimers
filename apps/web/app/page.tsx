@@ -1,174 +1,168 @@
-'use client';
+// apps/web/app/page.tsx
+// Landing page for CE FirstTouch platform
+// Provides two CTAs: first-timer registration and admin login
+// RELEVANT FILES: apps/web/app/register/page.tsx, apps/web/app/login/page.tsx, apps/web/app/layout.tsx
 
-import { useState, useEffect } from 'react';
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
-interface FirstTimer {
-  id: string;
-  fullName: string;
-  email?: string;
-  phoneE164?: string;
-  status: string;
-  createdAt: string;
-  church: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-}
-
-export default function Dashboard() {
-  const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchFirstTimers();
-  }, []);
-
-  const fetchFirstTimers = async () => {
-    try {
-      const response = await fetch('/api/first-timers');
-      if (!response.ok) throw new Error('Failed to fetch first timers');
-      
-      const data = await response.json();
-      setFirstTimers(data.firstTimers || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'NEW': return 'bg-gray-100 text-gray-800';
-      case 'VERIFIED': return 'bg-green-100 text-green-800';
-      case 'CONTACTED': return 'bg-blue-100 text-blue-800';
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
-      case 'FOUNDATION_ENROLLED': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg">Loading first timers...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">First Timers Dashboard</h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Manage and track first-time visitors across your churches
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0">
-            <button
-              onClick={fetchFirstTimers}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Refresh
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50">
+      {/* Navigation */}
+      <nav className="fixed top-4 left-4 right-4 z-50">
+        <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/50 shadow-sm px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+              </div>
+              <span className="font-semibold text-slate-800 text-lg">CE FirstTouch</span>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+              <Link href="/login">Admin Login</Link>
+            </Button>
           </div>
         </div>
+      </nav>
 
-        <div className="mt-8 flex flex-col">
-          <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contact Info
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Church
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Registered
-                      </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {firstTimers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                          No first timers found
-                        </td>
-                      </tr>
-                    ) : (
-                      firstTimers.map((firstTimer) => (
-                        <tr key={firstTimer.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{firstTimer.fullName}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {firstTimer.email && (
-                                <div className="text-gray-600">{firstTimer.email}</div>
-                              )}
-                              {firstTimer.phoneE164 && (
-                                <div className="text-gray-600">{firstTimer.phoneE164}</div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{firstTimer.church.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(firstTimer.status)}`}>
-                              {getStatusLabel(firstTimer.status)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(firstTimer.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a
-                              href={`/first-timers/${firstTimer.id}`}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              View
-                            </a>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+      {/* Hero Section */}
+      <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          {/* Hero Content */}
+          <div className="text-center mb-16">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+              We&apos;re Glad
+              <span className="text-blue-600"> You&apos;re Here</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+              Christ Embassy welcomes first-time visitors with a warm, personal experience designed to help you feel at home and connected from the very beginning. You are not just a visitor—you are now part of a vision that extends beyond a traditional church.
+            </p>
+          </div>
+
+          {/* CTA Cards */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* First Timer Card */}
+            <Card className="group relative overflow-hidden border-0 shadow-xl shadow-blue-500/10 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 bg-white">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <CardContent className="relative p-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform duration-300">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-3">
+                  I&apos;m a First Timer
+                </h2>
+                <p className="text-slate-600 mb-6 leading-relaxed">
+                  Visiting one of our churches for the first time? We&apos;d love to meet you! Kindly complete this form to help us get to know you better.
+                </p>
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-200"
+                >
+                  <Link href="/register">Complete First Timer&apos;s Form</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Admin Card */}
+            <Card className="group relative overflow-hidden border-0 shadow-xl shadow-orange-500/10 hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 bg-white">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <CardContent className="relative p-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 group-hover:scale-110 transition-transform duration-300">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-3">
+                  Church Administrator
+                </h2>
+                <p className="text-slate-600 mb-6 leading-relaxed">
+                  Manage first-timer records, track follow-ups, and coordinate
+                  your church&apos;s first-timers ministry from your dashboard.
+                </p>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="w-full border-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all duration-200"
+                >
+                  <Link href="/login">Sign In to Dashboard</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Trust Indicators */}
+          <div className="mt-16 text-center">
+            <div className="inline-flex flex-wrap items-center justify-center gap-8 text-slate-500">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">Quick Registration</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">Personal Follow-up</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">Growing Together</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+            <p>Helping churches connect with first-time visitors</p>
+            <p>Powered by CE FirstTouch</p>
+          </div>
+        </div>
+      </footer>
     </div>
-  );
+  )
 }

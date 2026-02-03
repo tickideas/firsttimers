@@ -8,8 +8,8 @@
     "./tsconfig": "./tsconfig.json"
   },
   "dependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.23.0",
-    "@typescript-eslint/parser": "^8.23.0",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
     "globals": "^15.14.0"
   }
 }

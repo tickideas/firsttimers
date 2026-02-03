@@ -10,21 +10,21 @@
     }
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@firsttimers/config": "workspace:*",
-    "@types/react": "^19.0.8",
-    "@types/react-dom": "^19.0.3",
-    "eslint": "^9.19.0",
-    "tsup": "^8.3.6",
-    "typescript": "^5.7.3"
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.2",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.0"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
