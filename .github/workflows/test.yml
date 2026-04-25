@@ -67,7 +67,11 @@ jobs:
     
     - name: Run web tests
       run: |
-        cd apps/web && bun test
+        if find apps/web -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*_test_*' -o -name '*_spec_*' \) | grep -q .; then
+          cd apps/web && bun test
+        else
+          echo 'No web tests found; skipping.'
+        fi
       env:
         NODE_ENV: test
     
