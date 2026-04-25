@@ -15,7 +15,7 @@ const submitFormSchema = z.object({
   email: z.string().email().optional(),
   phoneE164: z.string().regex(/^\+\d{10,15}$/).optional(),
   consent: z.boolean(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 export const registerPublicFormRoutes = (app: App) => {

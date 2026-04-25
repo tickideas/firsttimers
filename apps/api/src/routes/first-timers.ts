@@ -22,7 +22,7 @@ const updateFirstTimerSchema = z.object({
   email: z.string().email().optional(),
   phoneE164: z.string().regex(/^\+\d{10,15}$/).optional(),
   status: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
-  notes: z.record(z.any()).optional()
+  notes: z.record(z.string(), z.any()).optional()
 });
 
 const buildWhereClause = (

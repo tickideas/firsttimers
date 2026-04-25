@@ -167,7 +167,7 @@ type VerificationNotificationPayload = z.infer<typeof verificationNotificationSc
 const processVerificationNotification = async (payload: unknown) => {
   const parsed = verificationNotificationSchema.safeParse(payload);
   if (!parsed.success) {
-    logger.error({ errors: parsed.error.errors }, 'Invalid verification notification payload');
+    logger.error({ errors: parsed.error.issues }, 'Invalid verification notification payload');
     throw new Error('Invalid payload');
   }
 

@@ -19,7 +19,7 @@ const classSchema = z.object({
   churchId: z.string(),
   startsAt: z.string().datetime().optional(),
   endsAt: z.string().datetime().optional(),
-  schedule: z.record(z.unknown()).optional(),
+  schedule: z.record(z.string(), z.unknown()).optional(),
 });
 
 const enrollmentSchema = z.object({
@@ -321,7 +321,7 @@ export function registerFoundationRoutes(app: App) {
     requireAuth,
     zValidator('json', z.object({
       status: z.enum(['ENROLLED', 'IN_PROGRESS', 'COMPLETED', 'DROPPED']),
-      attendance: z.record(z.unknown()).optional(),
+      attendance: z.record(z.string(), z.unknown()).optional(),
     })),
     async (c) => {
       const prisma = c.get('prisma')

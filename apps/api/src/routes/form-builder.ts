@@ -34,8 +34,8 @@ const updateFormSchema = z.object({
 });
 
 const formQuerySchema = z.object({
-  page: z.string().optional().transform(Number).pipe(z.number().int().min(1).default(1)),
-  limit: z.string().optional().transform(Number).pipe(z.number().int().min(1).max(100).default(20)),
+  page: z.string().optional().transform((val) => val ? Number(val) : 1).pipe(z.number().int().min(1)),
+  limit: z.string().optional().transform((val) => val ? Number(val) : 20).pipe(z.number().int().min(1).max(100)),
   churchId: z.string().optional(),
   active: z.enum(['true', 'false']).optional().transform(val => val === 'true')
 });
