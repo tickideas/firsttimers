@@ -13,14 +13,14 @@ const departmentSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   churchId: z.string(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const enrollmentSchema = z.object({
   firstTimerId: z.string(),
   departmentId: z.string(),
   status: z.enum(['INTERESTED', 'ONBOARDING', 'ACTIVE', 'INACTIVE']).optional(),
-  notes: z.record(z.unknown()).optional(),
+  notes: z.record(z.string(), z.unknown()).optional(),
 });
 
 export function registerDepartmentRoutes(app: App) {
@@ -260,7 +260,7 @@ export function registerDepartmentRoutes(app: App) {
     requireAuth,
     zValidator('json', z.object({
       status: z.enum(['INTERESTED', 'ONBOARDING', 'ACTIVE', 'INACTIVE']),
-      notes: z.record(z.unknown()).optional(),
+      notes: z.record(z.string(), z.unknown()).optional(),
     })),
     async (c) => {
       const prisma = c.get('prisma')

@@ -49,7 +49,7 @@ jobs:
     - name: Setup Prisma
       run: |
         bun run prisma:generate
-        bunx prisma db push --force-reset
+        bunx prisma db push --config prisma/prisma.config.ts --force-reset
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/firsttimers_test
         REDIS_URL: redis://localhost:6379
@@ -67,7 +67,11 @@ jobs:
     
     - name: Run web tests
       run: |
-        cd apps/web && bun test
+        if find apps/web -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*_test_*' -o -name '*_spec_*' \) | grep -q .; then
+          cd apps/web && bun test
+        else
+          echo 'No web tests found; skipping.'
+        fi
       env:
         NODE_ENV: test
     

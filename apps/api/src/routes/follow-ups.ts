@@ -7,8 +7,8 @@ import type { App } from '../app.js';
 type PipelineStage = 'NEW' | 'VERIFIED' | 'CONTACTED' | 'IN_PROGRESS' | 'FOUNDATION_ENROLLED' | 'FOUNDATION_IN_CLASS' | 'FOUNDATION_COMPLETED' | 'DEPARTMENT_ONBOARDING' | 'ACTIVE_MEMBER' | 'DORMANT';
 
 const followUpQuerySchema = z.object({
-  page: z.string().optional().transform(Number).pipe(z.number().int().min(1).default(1)),
-  limit: z.string().optional().transform(Number).pipe(z.number().int().min(1).max(100).default(20)),
+  page: z.string().optional().transform((val) => val ? Number(val) : 1).pipe(z.number().int().min(1)),
+  limit: z.string().optional().transform((val) => val ? Number(val) : 20).pipe(z.number().int().min(1).max(100)),
   status: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
   assignedTo: z.string().optional()
 });
@@ -16,7 +16,7 @@ const followUpQuerySchema = z.object({
 const assignFollowUpSchema = z.object({
   assignedToId: z.string().cuid2().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
-  notes: z.record(z.any()).optional()
+  notes: z.record(z.string(), z.any()).optional()
 });
 
 const contactAttemptSchema = z.object({
