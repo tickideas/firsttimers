@@ -24,6 +24,8 @@ jobs:
 
       - name: Generate Prisma client
         run: bun run prisma:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/firsttimers_ci
 
       - name: Lint
         run: bun run lint
