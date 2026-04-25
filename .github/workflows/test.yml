@@ -49,7 +49,7 @@ jobs:
     - name: Setup Prisma
       run: |
         bun run prisma:generate
-        bunx prisma db push --force-reset
+        bunx prisma db push --config prisma/prisma.config.ts --force-reset
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/firsttimers_test
         REDIS_URL: redis://localhost:6379
