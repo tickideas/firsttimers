@@ -1,12 +1,13 @@
 import { Worker } from 'bullmq';
 import pino from 'pino';
 import { z } from 'zod';
+import { NOTIFICATION_QUEUE_NAME } from '@firsttimers/types';
 
 const logger = pino({ name: 'worker', level: process.env.LOG_LEVEL ?? 'info' });
 
 const envSchema = z.object({
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
-  QUEUE_NAME: z.string().min(1).default('firsttimers-default'),
+  QUEUE_NAME: z.string().min(1).default(NOTIFICATION_QUEUE_NAME),
   // Email provider (Resend)
   RESEND_API_KEY: z.string().optional(),
   FROM_EMAIL: z.string().email().optional(),
@@ -171,16 +172,25 @@ const processVerificationNotification = async (payload: unknown) => {
     throw new Error('Invalid payload');
   }
 
-  const { code, channel, target } = parsed.data;
+  const { code, channel, target, expiresAt } = parsed.data;
+
+  const minutesUntilExpiry = Math.max(
+    1,
+    Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)
+  );
 
   let message = `Your verification code is: ${code}. `;
-  message += `This code will expire in 10 minutes. `;
+  message += `This code will expire in ${minutesUntilExpiry} minutes. `;
   message += `Please do not share this code with anyone.`;
 
-  if (channel === 'email') {
-    await sendEmail(target, 'Verify your contact information', message);
-  } else {
-    await sendSms(target, message);
+  const sent =
+    channel === 'email'
+      ? await sendEmail(target, 'Verify your contact information', message)
+      : await sendSms(target, message);
+
+  // Throw on failure so BullMQ retries the job instead of silently marking it done.
+  if (!sent) {
+    throw new Error(`Failed to send ${channel} verification notification`);
   }
 };
 

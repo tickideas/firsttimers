@@ -20,6 +20,7 @@
       "name": "@firsttimers/api",
       "version": "0.1.0",
       "dependencies": {
+        "@firsttimers/types": "workspace:*",
         "@hono/zod-validator": "^0.7.6",
         "@opentelemetry/api": "^1.9.1",
         "@sentry/bun": "^10.50.0",
@@ -82,6 +83,7 @@
       "name": "@firsttimers/worker",
       "version": "0.1.0",
       "dependencies": {
+        "@firsttimers/types": "workspace:*",
         "bullmq": "^5.76.2",
         "ioredis": "^5.10.1",
         "pino": "^10.3.1",

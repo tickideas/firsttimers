@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import { rateLimiter } from 'hono-rate-limiter';
+import { PHONE_E164_REGEX } from '@firsttimers/types';
 
 import type { App } from '../app.js';
 
@@ -13,9 +15,20 @@ const submitFormSchema = z.object({
   formId: z.string().cuid(),
   fullName: z.string().min(1).max(100),
   email: z.string().email().optional(),
-  phoneE164: z.string().regex(/^\+\d{10,15}$/).optional(),
-  consent: z.boolean(),
+  phoneE164: z.string().regex(PHONE_E164_REGEX).optional(),
+  // GDPR consent is mandatory: reject submissions where consent isn't granted
+  // rather than silently storing PII without it.
+  consent: z.literal(true),
   metadata: z.record(z.string(), z.any()).optional()
+});
+
+// Rate-limit the internet-facing form submit to curb spam / bulk-record abuse.
+const publicSubmitLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  keyGenerator: (c) =>
+    c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
 });
 
 export const registerPublicFormRoutes = (app: App) => {
@@ -140,7 +153,7 @@ export const registerPublicFormRoutes = (app: App) => {
     });
   });
 
-  app.post('/f/:churchSlug/:formId', zValidator('param', getFormSchema), zValidator('json', submitFormSchema), async (c) => {
+  app.post('/f/:churchSlug/:formId', publicSubmitLimiter, zValidator('param', getFormSchema), zValidator('json', submitFormSchema), async (c) => {
     const prisma = c.get('prisma')
     const { churchSlug, formId } = c.req.valid('param');
     const { fullName, email, phoneE164, consent, metadata } = c.req.valid('json');
@@ -214,19 +227,25 @@ export const registerPublicFormRoutes = (app: App) => {
       }
     });
 
-    const followUp = await prisma.followUp.create({
-      data: {
-        tenantId: church.tenantId,
-        firstTimerId: firstTimer.id,
-        currentStage: 'NEW',
-        priority: 'normal'
-      },
-      select: {
-        id: true,
-        priority: true,
-        currentStage: true
-      }
+    // Only create a follow-up if this first-timer doesn't already have one.
+    // Prevents a double-submit / retry from generating duplicate follow-up
+    // tasks (staff chasing the same person twice).
+    const existingFollowUp = await prisma.followUp.findFirst({
+      where: { firstTimerId: firstTimer.id },
+      select: { id: true }
     });
+
+    if (!existingFollowUp) {
+      await prisma.followUp.create({
+        data: {
+          tenantId: church.tenantId,
+          firstTimerId: firstTimer.id,
+          currentStage: 'NEW',
+          priority: 'normal'
+        },
+        select: { id: true }
+      });
+    }
 
     return c.json({
       success: true,

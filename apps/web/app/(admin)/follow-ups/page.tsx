@@ -76,9 +76,12 @@ export default function FollowUpsPage() {
   const { token } = useAuth();
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUp | null>(null);
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({
     channel: "phone",
     outcome: "reached",
@@ -88,13 +91,16 @@ export default function FollowUpsPage() {
   const fetchFollowUps = useCallback(async () => {
     if (!token) return;
 
+    setLoadError(null);
     try {
       const response = await api.get<{
         followUps: FollowUp[];
       }>("/api/follow-ups?limit=100", { token });
       setFollowUps(response.followUps || []);
     } catch (error) {
-      console.error("Failed to fetch follow-ups:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to load follow-ups";
+      setLoadError(message);
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +111,10 @@ export default function FollowUpsPage() {
   }, [fetchFollowUps]);
 
   const handleLogContact = async () => {
-    if (!token || !selectedFollowUp) return;
+    if (!token || !selectedFollowUp || isSavingContact) return;
 
+    setIsSavingContact(true);
+    setContactError(null);
     try {
       await api.post(
         `/api/follow-ups/${selectedFollowUp.id}/attempts`,
@@ -117,7 +125,11 @@ export default function FollowUpsPage() {
       setContactForm({ channel: "phone", outcome: "reached", notes: "" });
       fetchFollowUps();
     } catch (error) {
-      console.error("Failed to log contact:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to log contact";
+      setContactError(message);
+    } finally {
+      setIsSavingContact(false);
     }
   };
 
@@ -159,6 +171,15 @@ export default function FollowUpsPage() {
           </Tabs>
         </div>
       </div>
+
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center justify-between">
+          <span>{loadError}</span>
+          <Button variant="outline" size="sm" onClick={fetchFollowUps}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {view === "kanban" ? (
         <div className="grid gap-4 md:grid-cols-4">
@@ -299,11 +320,22 @@ export default function FollowUpsPage() {
       )}
 
       {/* Contact Log Modal */}
-      <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
+      <Dialog
+        open={contactModalOpen}
+        onOpenChange={(open) => {
+          setContactModalOpen(open);
+          if (!open) setContactError(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Log Contact Attempt</DialogTitle>
           </DialogHeader>
+          {contactError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              {contactError}
+            </div>
+          )}
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Channel</label>
@@ -360,7 +392,9 @@ export default function FollowUpsPage() {
             <Button variant="outline" onClick={() => setContactModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleLogContact}>Save</Button>
+            <Button onClick={handleLogContact} disabled={isSavingContact}>
+              {isSavingContact ? "Saving..." : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

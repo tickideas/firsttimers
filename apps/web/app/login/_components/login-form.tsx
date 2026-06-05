@@ -27,9 +27,10 @@ interface Tenant {
 
 interface LoginFormProps {
   churches: Tenant[];
+  loadFailed?: boolean;
 }
 
-export function LoginForm({ churches }: LoginFormProps) {
+export function LoginForm({ churches, loadFailed = false }: LoginFormProps) {
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
@@ -93,6 +94,12 @@ export function LoginForm({ churches }: LoginFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+              {loadFailed && (
+                <p className="text-sm text-red-600">
+                  Couldn&apos;t load the list of churches. Please refresh the page
+                  to try again.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

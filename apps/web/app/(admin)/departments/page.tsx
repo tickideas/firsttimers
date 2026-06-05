@@ -49,18 +49,22 @@ export default function DepartmentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDepartments = useCallback(async () => {
     if (!token) return;
 
+    setError(null);
     try {
       const response = await api.get<{
         data: Department[];
       }>("/api/departments", { token });
       setDepartments(response.data || []);
-    } catch (error) {
-      console.error("Failed to fetch departments:", error);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load departments";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -101,14 +105,24 @@ export default function DepartmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!token) return;
+    if (!token || deletingId) return;
 
+    const dept = departments.find((d) => d.id === id);
+    const confirmed = window.confirm(
+      `Delete department "${dept?.name ?? ""}"? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    setError(null);
     try {
       await api.delete(`/api/departments/${id}`, { token });
       setDepartments(departments.filter((d) => d.id !== id));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete department";
       setError(message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -202,10 +216,11 @@ export default function DepartmentsPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-600"
+                      disabled={deletingId === dept.id}
                       onClick={() => handleDelete(dept.id)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      {deletingId === dept.id ? "Deleting..." : "Delete"}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

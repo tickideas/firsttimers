@@ -1,13 +1,8 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import type { Prisma } from '@prisma/client';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
+import { toPrismaJson } from '../utils/json.js';
 import type { App } from '../app.js';
-
-// Helper to convert Zod output to Prisma's expected Json type
-const toPrismaJson = (value: unknown): Prisma.InputJsonValue => {
-  return value as Prisma.InputJsonValue;
-};
 
 const courseSchema = z.object({
   name: z.string().min(1).max(200),
@@ -32,7 +27,7 @@ export function registerFoundationRoutes(app: App) {
   // ============ COURSES ============
 
   // List courses
-  app.get('/api/foundation/courses', requireAuth, async (c) => {
+  app.get('/api/foundation/courses', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -52,7 +47,7 @@ export function registerFoundationRoutes(app: App) {
   });
 
   // Get course by ID
-  app.get('/api/foundation/courses/:id', requireAuth, async (c) => {
+  app.get('/api/foundation/courses/:id', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -81,7 +76,7 @@ export function registerFoundationRoutes(app: App) {
   // Create course
   app.post(
     '/api/foundation/courses',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'foundation_coordinator']),
     zValidator('json', courseSchema),
     async (c) => {
@@ -105,7 +100,7 @@ export function registerFoundationRoutes(app: App) {
   // Update course
   app.put(
     '/api/foundation/courses/:id',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'foundation_coordinator']),
     zValidator('json', courseSchema.partial()),
     async (c) => {
@@ -132,7 +127,7 @@ export function registerFoundationRoutes(app: App) {
   // Delete course
   app.delete(
     '/api/foundation/courses/:id',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin']),
     async (c) => {
       const prisma = c.get('prisma')
@@ -152,7 +147,7 @@ export function registerFoundationRoutes(app: App) {
   // ============ CLASSES ============
 
   // List classes
-  app.get('/api/foundation/classes', requireAuth, async (c) => {
+  app.get('/api/foundation/classes', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -177,7 +172,7 @@ export function registerFoundationRoutes(app: App) {
   });
 
   // Get class by ID
-  app.get('/api/foundation/classes/:id', requireAuth, async (c) => {
+  app.get('/api/foundation/classes/:id', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -212,7 +207,7 @@ export function registerFoundationRoutes(app: App) {
   // Create class
   app.post(
     '/api/foundation/classes',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'foundation_coordinator']),
     zValidator('json', classSchema),
     async (c) => {
@@ -240,7 +235,7 @@ export function registerFoundationRoutes(app: App) {
   // ============ ENROLLMENTS ============
 
   // List enrollments
-  app.get('/api/foundation/enrollments', requireAuth, async (c) => {
+  app.get('/api/foundation/enrollments', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -272,7 +267,7 @@ export function registerFoundationRoutes(app: App) {
   // Create enrollment
   app.post(
     '/api/foundation/enrollments',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'foundation_coordinator']),
     zValidator('json', enrollmentSchema),
     async (c) => {
@@ -289,6 +284,16 @@ export function registerFoundationRoutes(app: App) {
 
       if (!firstTimer) {
         return c.json({ message: 'First timer not found' }, 404);
+      }
+
+      // Guard against duplicate enrollment so a double-click/retry doesn't
+      // enroll the same person in the same class twice.
+      const existing = await prisma.foundationEnrollment.findFirst({
+        where: { firstTimerId: data.firstTimerId, classId: data.classId },
+      });
+
+      if (existing) {
+        return c.json({ message: 'Already enrolled in this class' }, 409);
       }
 
       const enrollment = await prisma.foundationEnrollment.create({
@@ -318,15 +323,27 @@ export function registerFoundationRoutes(app: App) {
   // Update enrollment
   app.put(
     '/api/foundation/enrollments/:id',
-    requireAuth,
+    requireAuth(),
     zValidator('json', z.object({
       status: z.enum(['ENROLLED', 'IN_PROGRESS', 'COMPLETED', 'DROPPED']),
       attendance: z.record(z.string(), z.unknown()).optional(),
     })),
     async (c) => {
       const prisma = c.get('prisma')
+      const user = c.get('authUser')!
+      const tenantId = user.tenantId
       const { id } = c.req.param();
       const data = c.req.valid('json');
+
+      // Verify the enrollment belongs to this tenant before mutating, since this
+      // model has no tenantId column and isn't covered by auto-isolation.
+      const existing = await prisma.foundationEnrollment.findFirst({
+        where: { id, firstTimer: { tenantId } },
+      });
+
+      if (!existing) {
+        return c.json({ message: 'Enrollment not found' }, 404);
+      }
 
       const enrollment = await prisma.foundationEnrollment.update({
         where: { id },

@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import { PipelineStageSchema, type PipelineStage } from '@firsttimers/types';
 
-import { requireAuth, requireRoles } from '../middleware/auth.js';
+import { requireAuth, requireRoles, FOLLOWUP_ROLES, ALL_ADMIN_ROLES } from '../middleware/auth.js';
 import type { App } from '../app.js';
-
-type PipelineStage = 'NEW' | 'VERIFIED' | 'CONTACTED' | 'IN_PROGRESS' | 'FOUNDATION_ENROLLED' | 'FOUNDATION_IN_CLASS' | 'FOUNDATION_COMPLETED' | 'DEPARTMENT_ONBOARDING' | 'ACTIVE_MEMBER' | 'DORMANT';
 
 const followUpQuerySchema = z.object({
   page: z.string().optional().transform((val) => val ? Number(val) : 1).pipe(z.number().int().min(1)),
   limit: z.string().optional().transform((val) => val ? Number(val) : 20).pipe(z.number().int().min(1).max(100)),
-  status: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
+  status: PipelineStageSchema.optional(),
   assignedTo: z.string().optional()
 });
 
@@ -27,13 +26,13 @@ const contactAttemptSchema = z.object({
 });
 
 const updateFollowUpSchema = z.object({
-  currentStage: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
+  currentStage: PipelineStageSchema.optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   assignedToId: z.string().cuid2().optional()
 });
 
 export const registerFollowUpRoutes = (app: App) => {
-  app.get('/api/follow-ups', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('query', followUpQuerySchema), async (c) => {
+  app.get('/api/follow-ups', requireAuth(), requireRoles(FOLLOWUP_ROLES), zValidator('query', followUpQuerySchema), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
@@ -98,7 +97,7 @@ export const registerFollowUpRoutes = (app: App) => {
     });
   });
 
-  app.get('/api/follow-ups/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), async (c) => {
+  app.get('/api/follow-ups/:id', requireAuth(), requireRoles(FOLLOWUP_ROLES), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
@@ -141,7 +140,7 @@ export const registerFollowUpRoutes = (app: App) => {
     return c.json({ followUp });
   });
 
-  app.post('/api/follow-ups', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), zValidator('json', assignFollowUpSchema), async (c) => {
+  app.post('/api/follow-ups', requireAuth(), requireRoles(ALL_ADMIN_ROLES), zValidator('json', assignFollowUpSchema), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
@@ -201,7 +200,7 @@ export const registerFollowUpRoutes = (app: App) => {
     });
   });
 
-  app.put('/api/follow-ups/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('json', updateFollowUpSchema), async (c) => {
+  app.put('/api/follow-ups/:id', requireAuth(), requireRoles(FOLLOWUP_ROLES), zValidator('json', updateFollowUpSchema), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
@@ -262,7 +261,7 @@ export const registerFollowUpRoutes = (app: App) => {
     });
   });
 
-  app.post('/api/follow-ups/:id/attempts', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'followup_agent']), zValidator('json', contactAttemptSchema), async (c) => {
+  app.post('/api/follow-ups/:id/attempts', requireAuth(), requireRoles(FOLLOWUP_ROLES), zValidator('json', contactAttemptSchema), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);
@@ -313,7 +312,7 @@ export const registerFollowUpRoutes = (app: App) => {
     });
   });
 
-  app.get('/api/follow-ups/stats', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+  app.get('/api/follow-ups/stats', requireAuth(), requireRoles(ALL_ADMIN_ROLES), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser');
     if (!user) return c.json({ message: 'Unauthorized' }, 401);

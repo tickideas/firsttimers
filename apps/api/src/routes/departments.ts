@@ -1,13 +1,8 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import type { Prisma } from '@prisma/client';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
+import { toPrismaJson } from '../utils/json.js';
 import type { App } from '../app.js';
-
-// Helper to convert Zod output to Prisma's expected Json type
-const toPrismaJson = (value: unknown): Prisma.InputJsonValue => {
-  return value as Prisma.InputJsonValue;
-};
 
 const departmentSchema = z.object({
   name: z.string().min(1).max(100),
@@ -27,7 +22,7 @@ export function registerDepartmentRoutes(app: App) {
   // ============ DEPARTMENTS ============
 
   // List departments
-  app.get('/api/departments', requireAuth, async (c) => {
+  app.get('/api/departments', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -50,7 +45,7 @@ export function registerDepartmentRoutes(app: App) {
   });
 
   // Get department by ID
-  app.get('/api/departments/:id', requireAuth, async (c) => {
+  app.get('/api/departments/:id', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -82,7 +77,7 @@ export function registerDepartmentRoutes(app: App) {
   // Create department
   app.post(
     '/api/departments',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'department_head']),
     zValidator('json', departmentSchema),
     async (c) => {
@@ -125,7 +120,7 @@ export function registerDepartmentRoutes(app: App) {
   // Update department
   app.put(
     '/api/departments/:id',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'church_admin', 'department_head']),
     zValidator('json', departmentSchema.partial()),
     async (c) => {
@@ -156,7 +151,7 @@ export function registerDepartmentRoutes(app: App) {
   // Delete department
   app.delete(
     '/api/departments/:id',
-    requireAuth,
+    requireAuth(),
     requireRoles(['super_admin', 'zonal_admin', 'church_admin']),
     async (c) => {
       const prisma = c.get('prisma')
@@ -176,7 +171,7 @@ export function registerDepartmentRoutes(app: App) {
   // ============ ENROLLMENTS ============
 
   // List department enrollments
-  app.get('/api/department-enrollments', requireAuth, async (c) => {
+  app.get('/api/department-enrollments', requireAuth(), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')
     if (!user) return c.json({ message: 'Unauthorized' }, 401)
@@ -207,7 +202,7 @@ export function registerDepartmentRoutes(app: App) {
   // Create department enrollment
   app.post(
     '/api/department-enrollments',
-    requireAuth,
+    requireAuth(),
     zValidator('json', enrollmentSchema),
     async (c) => {
       const prisma = c.get('prisma')
@@ -257,15 +252,27 @@ export function registerDepartmentRoutes(app: App) {
   // Update department enrollment
   app.put(
     '/api/department-enrollments/:id',
-    requireAuth,
+    requireAuth(),
     zValidator('json', z.object({
       status: z.enum(['INTERESTED', 'ONBOARDING', 'ACTIVE', 'INACTIVE']),
       notes: z.record(z.string(), z.unknown()).optional(),
     })),
     async (c) => {
       const prisma = c.get('prisma')
+      const user = c.get('authUser')!
+      const tenantId = user.tenantId
       const { id } = c.req.param();
       const data = c.req.valid('json');
+
+      // Verify the enrollment belongs to this tenant before mutating, since this
+      // model has no tenantId column and isn't covered by auto-isolation.
+      const existing = await prisma.departmentEnrollment.findFirst({
+        where: { id, firstTimer: { tenantId } },
+      });
+
+      if (!existing) {
+        return c.json({ message: 'Enrollment not found' }, 404);
+      }
 
       const enrollment = await prisma.departmentEnrollment.update({
         where: { id },
@@ -295,14 +302,22 @@ export function registerDepartmentRoutes(app: App) {
   // Delete department enrollment
   app.delete(
     '/api/department-enrollments/:id',
-    requireAuth,
+    requireAuth(),
     async (c) => {
       const prisma = c.get('prisma')
+      const user = c.get('authUser')!
+      const tenantId = user.tenantId
       const { id } = c.req.param();
 
-      await prisma.departmentEnrollment.delete({
-        where: { id },
+      // Scope the delete by tenant relation so one tenant can't delete another's
+      // enrollment (this model has no tenantId column for auto-isolation).
+      const result = await prisma.departmentEnrollment.deleteMany({
+        where: { id, firstTimer: { tenantId } },
       });
+
+      if (result.count === 0) {
+        return c.json({ message: 'Enrollment not found' }, 404);
+      }
 
       return c.json({ message: 'Enrollment removed' });
     }

@@ -28,7 +28,27 @@ export const authenticate = async (c: Context<AppBindings>, next: Next) => {
   return next();
 };
 
-export const requireRoles = (roles: string[]) =>
+// Named role groups so route guards reference one definition instead of
+// re-pasting literal role arrays (which drift and create authorization holes).
+export const ALL_ADMIN_ROLES = [
+  'super_admin',
+  'zonal_admin',
+  'group_admin',
+  'church_admin',
+] as const
+
+export const FIRST_TIMER_VIEW_ROLES = [
+  ...ALL_ADMIN_ROLES,
+  'verifier',
+  'followup_agent',
+] as const
+
+export const FOLLOWUP_ROLES = [
+  ...ALL_ADMIN_ROLES,
+  'followup_agent',
+] as const
+
+export const requireRoles = (roles: readonly string[]) =>
   async (c: Context<AppBindings>, next: Next) => {
     const user = c.get('authUser');
     if (!user) {

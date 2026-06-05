@@ -10,6 +10,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { ZodError } from 'zod';
 
 import { env } from './config/env.js';
+import { logger as appLogger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import { authenticate } from './middleware/auth.js';
 import { tenantIsolation } from './middleware/tenant-isolation.js';
@@ -158,10 +159,10 @@ export const createApp = () => {
       }
     }
 
-    console.error({ err, requestId }, 'Unhandled error')
+    appLogger.error({ err, requestId }, 'Unhandled error')
 
     return c.json({
-      message: process.env.NODE_ENV === 'production'
+      message: env.NODE_ENV === 'production'
         ? 'Internal server error'
         : err.message
     }, 500)

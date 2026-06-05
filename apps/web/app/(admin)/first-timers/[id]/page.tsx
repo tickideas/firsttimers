@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,10 +118,15 @@ export default function FirstTimerDetailPage() {
   const [firstTimer, setFirstTimer] = useState<FirstTimerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const fetchFirstTimer = useCallback(async () => {
     if (!token || !params.id) return;
 
+    setLoadError(null);
+    setNotFound(false);
     try {
       const response = await api.get<{ firstTimer: FirstTimerDetail }>(
         `/api/first-timers/${params.id}`,
@@ -129,7 +134,15 @@ export default function FirstTimerDetailPage() {
       );
       setFirstTimer(response.firstTimer);
     } catch (error) {
-      console.error("Failed to fetch first timer:", error);
+      // Only treat a real 404 as "not found". Network/auth/server errors must
+      // surface loudly so staff don't think the record was deleted.
+      if (error instanceof ApiError && error.status === 404) {
+        setNotFound(true);
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Failed to load first timer";
+        setLoadError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -143,6 +156,7 @@ export default function FirstTimerDetailPage() {
     if (!token || !firstTimer) return;
 
     setIsUpdating(true);
+    setUpdateError(null);
     try {
       await api.put(
         `/api/first-timers/${firstTimer.id}`,
@@ -151,7 +165,9 @@ export default function FirstTimerDetailPage() {
       );
       setFirstTimer({ ...firstTimer, status: newStatus });
     } catch (error) {
-      console.error("Failed to update status:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to update status";
+      setUpdateError(message);
     } finally {
       setIsUpdating(false);
     }
@@ -166,7 +182,18 @@ export default function FirstTimerDetailPage() {
     );
   }
 
-  if (!firstTimer) {
+  if (loadError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600">{loadError}</p>
+        <Button variant="outline" className="mt-4" onClick={fetchFirstTimer}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  if (notFound || !firstTimer) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">First timer not found</p>
@@ -435,6 +462,9 @@ export default function FirstTimerDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {updateError && (
+                <p className="mt-2 text-sm text-red-600">{updateError}</p>
+              )}
               <div className="mt-4 space-y-2">
                 {PIPELINE_STAGES.map((stage, index) => {
                   const currentIndex = PIPELINE_STAGES.indexOf(

@@ -1,6 +1,21 @@
+// File: packages/types/src/index.ts
+// Description: Shared Zod schemas, types, and constants used across web, api, and worker
+// Why: Single source of truth so enums/IDs/queue names cannot drift between apps and the database
+// RELEVANT FILES: prisma/schema.prisma, apps/api/src/services/notifications.ts, apps/worker/src/index.ts
+
 import { z } from 'zod';
 
-export const TenantModeSchema = z.enum(['zone', 'standalone']);
+// Name of the BullMQ queue shared between the API (producer) and worker (consumer).
+// Must match on both sides or jobs are never processed.
+export const NOTIFICATION_QUEUE_NAME = 'notifications';
+
+// E.164 phone format: leading + followed by 10-15 digits. Shared so public form,
+// admin edit, and worker all validate phone numbers the same way.
+export const PHONE_E164_REGEX = /^\+\d{10,15}$/;
+export const PhoneE164Schema = z.string().regex(PHONE_E164_REGEX);
+
+// Matches Prisma's TenantMode enum casing exactly.
+export const TenantModeSchema = z.enum(['ZONE', 'STANDALONE']);
 export type TenantMode = z.infer<typeof TenantModeSchema>;
 
 export const PipelineStageSchema = z.enum([
@@ -18,12 +33,12 @@ export const PipelineStageSchema = z.enum([
 export type PipelineStage = z.infer<typeof PipelineStageSchema>;
 
 export const MinimalFirstTimerSchema = z.object({
-  id: z.string().cuid2(),
-  tenantId: z.string().cuid2(),
-  churchId: z.string().cuid2(),
+  id: z.string().cuid(),
+  tenantId: z.string().cuid(),
+  churchId: z.string().cuid(),
   fullName: z.string().min(1),
   email: z.string().email().optional(),
-  phoneE164: z.string().regex(/^\+/).optional(),
+  phoneE164: PhoneE164Schema.optional(),
   consent: z.boolean(),
   status: PipelineStageSchema
 });
