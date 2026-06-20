@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 
+import { buildSubmissionPayload } from '@/lib/forms';
+
 interface FormField {
   name: string;
   label: string;
@@ -68,14 +70,6 @@ export default function FirstTimerForm() {
     setFormValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  const formatPhoneE164 = (phone: string): string => {
-    const digits = phone.replace(/\D/g, '');
-    if (!digits.startsWith('+')) {
-      return '+' + digits;
-    }
-    return digits;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form || !consent) return;
@@ -84,20 +78,14 @@ export default function FirstTimerForm() {
     setError(null);
 
     try {
-      const payload: Record<string, string | boolean> = {
+      const payload = buildSubmissionPayload({
         churchSlug,
         formId,
-        fullName: formValues.fullName || '',
+        fullName: formValues.fullName,
+        email: formValues.email,
+        phoneE164: formValues.phoneE164,
         consent,
-      };
-
-      if (formValues.email) {
-        payload.email = formValues.email;
-      }
-
-      if (formValues.phoneE164) {
-        payload.phoneE164 = formatPhoneE164(formValues.phoneE164);
-      }
+      });
 
       const response = await fetch(`${API_URL}/f/${churchSlug}/${formId}`, {
         method: 'POST',
