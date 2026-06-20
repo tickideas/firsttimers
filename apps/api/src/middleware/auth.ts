@@ -1,4 +1,5 @@
 import type { Context, Next } from 'hono';
+import type { RoleKey } from '@firsttimers/types';
 
 import type { AppBindings } from '../types/context.js';
 import type { JwtPayload } from '../types/jwt.js';
@@ -35,27 +36,30 @@ export const ALL_ADMIN_ROLES = [
   'zonal_admin',
   'group_admin',
   'church_admin',
-] as const
+] as const satisfies readonly RoleKey[]
 
 export const FIRST_TIMER_VIEW_ROLES = [
   ...ALL_ADMIN_ROLES,
   'verifier',
   'followup_agent',
-] as const
+] as const satisfies readonly RoleKey[]
 
 export const FOLLOWUP_ROLES = [
   ...ALL_ADMIN_ROLES,
   'followup_agent',
-] as const
+] as const satisfies readonly RoleKey[]
 
-export const requireRoles = (roles: readonly string[]) =>
+export const requireRoles = (roles: readonly RoleKey[]) =>
   async (c: Context<AppBindings>, next: Next) => {
     const user = c.get('authUser');
     if (!user) {
       return c.json({ message: 'Unauthorized' }, 401);
     }
 
-    const hasRole = user.roleKeys.some((role) => roles.includes(role));
+    // user.roleKeys come from the DB as untyped strings (a system boundary);
+    // widen `roles` to string[] so the membership check stays type-correct.
+    const allowed: readonly string[] = roles;
+    const hasRole = user.roleKeys.some((role) => allowed.includes(role));
     if (!hasRole) {
       return c.json({ message: 'Forbidden' }, 403);
     }
