@@ -11,6 +11,7 @@ import { rateLimiter } from 'hono-rate-limiter';
 import { signAccessToken, signRefreshToken } from '../services/jwt.js';
 import { verifyPassword } from '../utils/password.js';
 import { requireAuth } from '../middleware/auth.js';
+import { env } from '../config/env.js';
 import type { App } from '../app.js';
 
 const loginSchema = z.object({
@@ -83,7 +84,7 @@ export const registerAuthRoutes = (app: App) => {
     ]);
 
     // Set httpOnly cookies for XSS protection
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = env.NODE_ENV === 'production';
     setCookie(c, 'auth_token', accessToken, {
       httpOnly: true,
       secure: isProduction,

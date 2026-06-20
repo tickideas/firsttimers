@@ -8,18 +8,18 @@ import type { PrismaClient } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import type { AppBindings } from '../types/context.js'
 
+// Only models that actually have a `tenantId` column. Relation-only models
+// (FormSubmission, ContactAttempt, FoundationClass, FoundationEnrollment,
+// DepartmentEnrollment) are NOT listed here: stamping tenantId onto them throws
+// a Prisma validation error. Their isolation is enforced via parent-relation
+// filters in the routes (e.g. `where: { firstTimer: { tenantId } }`).
 const TENANT_ISOLATED_MODELS = new Set([
   'FirstTimer',
   'Church',
   'Form',
-  'FormSubmission',
   'FollowUp',
-  'ContactAttempt',
   'FoundationCourse',
-  'FoundationClass',
-  'FoundationEnrollment',
   'Department',
-  'DepartmentEnrollment',
   'Notification',
   'VerificationCode',
 ])

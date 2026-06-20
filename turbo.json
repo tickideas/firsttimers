@@ -1,7 +1,20 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["bun.lockb", ".env"],
-  "globalEnv": ["NODE_ENV", "DATABASE_URL", "REDIS_URL"],
+  "globalDependencies": ["bun.lock", ".env"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "QUEUE_NAME",
+    "BREVO_API_KEY",
+    "RESEND_API_KEY",
+    "FROM_EMAIL",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER",
+    "NEXT_PUBLIC_API_URL"
+  ],
   "ui": "tui",
   "tasks": {
     "build": {

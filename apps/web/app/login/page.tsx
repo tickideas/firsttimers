@@ -17,7 +17,7 @@ interface Tenant {
   slug: string;
 }
 
-async function getChurches(): Promise<Tenant[]> {
+async function getChurches(): Promise<{ churches: Tenant[]; loadFailed: boolean }> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const response = await fetch(`${apiUrl}/auth/tenants`, {
@@ -26,19 +26,19 @@ async function getChurches(): Promise<Tenant[]> {
 
     if (!response.ok) {
       console.error("Failed to fetch churches:", response.status);
-      return [];
+      return { churches: [], loadFailed: true };
     }
 
     const data = await response.json();
-    return data.data || [];
+    return { churches: data.data || [], loadFailed: false };
   } catch (error) {
     console.error("Error fetching churches:", error);
-    return [];
+    return { churches: [], loadFailed: true };
   }
 }
 
 export default async function LoginPage() {
-  const churches = await getChurches();
+  const { churches, loadFailed } = await getChurches();
 
-  return <LoginForm churches={churches} />;
+  return <LoginForm churches={churches} loadFailed={loadFailed} />;
 }

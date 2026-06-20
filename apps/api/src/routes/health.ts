@@ -19,6 +19,6 @@ export const registerHealthRoutes = (app: App) => {
       checks: {
         database: dbHealthy
       }
-    });
+    }, dbHealthy ? 200 : 503);
   });
 };

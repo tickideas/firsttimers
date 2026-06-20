@@ -6,22 +6,23 @@
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { Prisma, PipelineStage } from '@prisma/client';
+import { PipelineStageSchema, PHONE_E164_REGEX } from '@firsttimers/types';
 
-import { requireAuth, requireRoles } from '../middleware/auth.js';
+import { requireAuth, requireRoles, FIRST_TIMER_VIEW_ROLES, ALL_ADMIN_ROLES } from '../middleware/auth.js';
 import type { App } from '../app.js';
 
 const firstTimerQuerySchema = z.object({
   page: z.string().optional().transform((val) => val ? Number(val) : 1).pipe(z.number().int().min(1)),
   limit: z.string().optional().transform((val) => val ? Number(val) : 20).pipe(z.number().int().min(1).max(100)),
-  status: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
+  status: PipelineStageSchema.optional(),
   search: z.string().optional()
 });
 
 const updateFirstTimerSchema = z.object({
   fullName: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
-  phoneE164: z.string().regex(/^\+\d{10,15}$/).optional(),
-  status: z.enum(['NEW', 'VERIFIED', 'CONTACTED', 'IN_PROGRESS', 'FOUNDATION_ENROLLED', 'FOUNDATION_IN_CLASS', 'FOUNDATION_COMPLETED', 'DEPARTMENT_ONBOARDING', 'ACTIVE_MEMBER', 'DORMANT']).optional(),
+  phoneE164: z.string().regex(PHONE_E164_REGEX).optional(),
+  status: PipelineStageSchema.optional(),
   notes: z.record(z.string(), z.any()).optional()
 });
 
@@ -48,7 +49,7 @@ const buildWhereClause = (
 }
 
 export const registerFirstTimerRoutes = (app: App) => {
-  app.get('/api/first-timers', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), zValidator('query', firstTimerQuerySchema), async (c) => {
+  app.get('/api/first-timers', requireAuth(), requireRoles(FIRST_TIMER_VIEW_ROLES), zValidator('query', firstTimerQuerySchema), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')!
     const { page, limit, status, search } = c.req.valid('query')
@@ -99,7 +100,7 @@ export const registerFirstTimerRoutes = (app: App) => {
     })
   })
 
-  app.get('/api/first-timers/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), async (c) => {
+  app.get('/api/first-timers/:id', requireAuth(), requireRoles(FIRST_TIMER_VIEW_ROLES), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')!
     const id = c.req.param('id')
@@ -187,7 +188,7 @@ export const registerFirstTimerRoutes = (app: App) => {
     })
   })
 
-  app.delete('/api/first-timers/:id', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin']), async (c) => {
+  app.delete('/api/first-timers/:id', requireAuth(), requireRoles(ALL_ADMIN_ROLES), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')!
     const id = c.req.param('id')
@@ -210,7 +211,7 @@ export const registerFirstTimerRoutes = (app: App) => {
     return c.json({ message: 'First timer deleted successfully' })
   })
 
-  app.get('/api/first-timers/stats', requireAuth(), requireRoles(['super_admin', 'zonal_admin', 'group_admin', 'church_admin', 'verifier', 'followup_agent']), async (c) => {
+  app.get('/api/first-timers/stats', requireAuth(), requireRoles(FIRST_TIMER_VIEW_ROLES), async (c) => {
     const prisma = c.get('prisma')
     const user = c.get('authUser')!
 

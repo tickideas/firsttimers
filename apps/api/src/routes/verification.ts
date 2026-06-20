@@ -1,20 +1,25 @@
+import { rateLimiter } from 'hono-rate-limiter';
+
 import { generateVerificationCode, generateExpiryTime, isValidVerificationCode } from '../utils/verification.js';
 import { queueVerificationNotification } from '../services/notifications.js';
 import { env } from '../config/env.js';
 import type { App } from '../app.js';
 
-const sendVerificationSchema = {
-  firstTimerId: 'string',
-  channel: ['email', 'sms', 'whatsapp']
-};
+// Minimum time between verification-code sends for the same first-timer + channel.
+const RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
 
-const verifyCodeSchema = {
-  firstTimerId: 'string',
-  code: 'string'
-};
+// Limit how often the verification endpoints can be hit per client, to curb
+// email/SMS cost abuse and brute-forcing of the 6-digit code.
+const verificationLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  keyGenerator: (c) =>
+    c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+});
 
 export const registerVerificationRoutes = (app: App) => {
-  app.post('/api/verification/send', async (c) => {
+  app.post('/api/verification/send', verificationLimiter, async (c) => {
     const prisma = c.get('prisma')
     const body = await c.req.json();
     const { firstTimerId, channel } = body;
@@ -41,6 +46,27 @@ export const registerVerificationRoutes = (app: App) => {
     if ((channel === 'email' && firstTimer.emailVerified) || 
         ((channel === 'sms' || channel === 'whatsapp') && firstTimer.phoneVerified)) {
       return c.json({ message: 'Channel already verified' }, 400);
+    }
+
+    // Throttle: if an unused, unexpired code was issued within the cooldown
+    // window, refuse to send another one. Prevents resend-spam and duplicate
+    // outbound email/SMS (which cost money) from impatient users or retries.
+    const cooldownStart = new Date(Date.now() - RESEND_COOLDOWN_MS);
+    const recentCode = await prisma.verificationCode.findFirst({
+      where: {
+        firstTimerId,
+        channel,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+        createdAt: { gt: cooldownStart }
+      }
+    });
+
+    if (recentCode) {
+      return c.json(
+        { message: 'A verification code was already sent recently. Please wait before requesting another.' },
+        429
+      );
     }
 
     const code = generateVerificationCode();
@@ -80,7 +106,8 @@ export const registerVerificationRoutes = (app: App) => {
         firstTimerId,
         channel,
         expiresAt.toISOString(),
-        env.REDIS_URL
+        env.REDIS_URL,
+        verificationCode.id
       )
     ]);
 
@@ -91,7 +118,7 @@ export const registerVerificationRoutes = (app: App) => {
     });
   });
 
-  app.post('/api/verification/verify', async (c) => {
+  app.post('/api/verification/verify', verificationLimiter, async (c) => {
     const prisma = c.get('prisma')
     const body = await c.req.json();
     const { firstTimerId, code } = body;
@@ -111,13 +138,17 @@ export const registerVerificationRoutes = (app: App) => {
       return c.json({ message: 'First timer not found' }, 404);
     }
 
+    // Look up the active code by first-timer (NOT by the submitted code) so that
+    // wrong guesses still count against the attempt limit. Looking up by code
+    // meant a wrong guess found no row and incremented nothing, so the lockout
+    // never triggered and the 6-digit code could be brute-forced.
     const verificationCode = await prisma.verificationCode.findFirst({
       where: {
         firstTimerId,
-        code,
         usedAt: null,
         expiresAt: { gt: new Date() }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     if (!verificationCode) {
@@ -126,6 +157,14 @@ export const registerVerificationRoutes = (app: App) => {
 
     if (verificationCode.attempts >= verificationCode.maxAttempts) {
       return c.json({ message: 'Maximum verification attempts exceeded' }, 400);
+    }
+
+    if (verificationCode.code !== code) {
+      await prisma.verificationCode.update({
+        where: { id: verificationCode.id },
+        data: { attempts: { increment: 1 } }
+      });
+      return c.json({ message: 'Invalid or expired verification code' }, 400);
     }
 
     await prisma.verificationCode.update({

@@ -53,7 +53,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-firsttimers_user}:${POSTGRES_PASSWORD:-default_password}@postgres:5432/${POSTGRES_DB:-firsttimers}
       REDIS_URL: redis://redis:${REDIS_PORT:-6379}
-      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_min_32_chars_long_xxxx}
       BREVO_API_KEY: ${BREVO_API_KEY:-no_brevo_key}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev_encryption_key}
       RLS_SUPER_ROLE: ${RLS_SUPER_ROLE:-postgres}
@@ -82,12 +82,12 @@ services:
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
+      DATABASE_URL: ****************************************************************/firsttimers
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: prod_jwt_secret_key_change_in_production
-      BREVO_API_KEY: prod_brevo_key
-      ENCRYPTION_KEY: prod_encryption_key_change_in_production
-      RLS_SUPER_ROLE: postgres
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      RLS_SUPER_ROLE: ${RLS_SUPER_ROLE:-postgres}
       NODE_ENV: production
     depends_on:
       postgres:
@@ -107,11 +107,12 @@ services:
       target: development
     container_name: firsttimers_worker
     environment:
-      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev_jwt_secret_key_change_in_production
-      BREVO_API_KEY: dev_brevo_key
-      ENCRYPTION_KEY: dev_encryption_key_change_in_production
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      FROM_EMAIL: ${FROM_EMAIL:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
       NODE_ENV: development
     depends_on:
       postgres:
@@ -135,11 +136,12 @@ services:
       target: runner
     container_name: firsttimers_worker_prod
     environment:
-      DATABASE_URL: postgresql://firsttimers_user:firsttimers_password@postgres:5432/firsttimers
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: prod_jwt_secret_key_change_in_production
-      BREVO_API_KEY: prod_brevo_key
-      ENCRYPTION_KEY: prod_encryption_key_change_in_production
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY is required}
+      FROM_EMAIL: ${FROM_EMAIL:?FROM_EMAIL is required}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
       NODE_ENV: production
     depends_on:
       postgres:
@@ -207,7 +209,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-default_password}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "5050:5050"
+      - "5050:80"
     depends_on:
       postgres:
         condition: service_healthy
