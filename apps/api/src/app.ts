@@ -59,7 +59,7 @@ const parseCorsOrigins = (origins: string[]) => {
   return { exactOrigins, wildcardOrigins }
 }
 
-const buildCorsOriginResolver = (origins: string[]) => {
+export const buildCorsOriginResolver = (origins: string[]) => {
   const { exactOrigins, wildcardOrigins } = parseCorsOrigins(origins)
 
   return (origin: string) => {
