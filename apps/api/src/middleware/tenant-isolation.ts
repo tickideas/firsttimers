@@ -13,7 +13,7 @@ import type { AppBindings } from '../types/context.js'
 // DepartmentEnrollment) are NOT listed here: stamping tenantId onto them throws
 // a Prisma validation error. Their isolation is enforced via parent-relation
 // filters in the routes (e.g. `where: { firstTimer: { tenantId } }`).
-const TENANT_ISOLATED_MODELS = new Set([
+export const TENANT_ISOLATED_MODELS = new Set([
   'FirstTimer',
   'Church',
   'Form',
@@ -23,6 +23,56 @@ const TENANT_ISOLATED_MODELS = new Set([
   'Notification',
   'VerificationCode',
 ])
+
+export const isTenantIsolatedModel = (model?: string): boolean =>
+  !!model && TENANT_ISOLATED_MODELS.has(model)
+
+// Operations whose `where` clause must be scoped to the current tenant.
+const WHERE_SCOPED_OPERATIONS = new Set([
+  'findMany',
+  'findFirst',
+  'findUnique',
+  'findFirstOrThrow',
+  'findUniqueOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+  'deleteMany',
+  'updateMany',
+  'update',
+  'delete',
+  'upsert',
+])
+
+// Pure transformation that stamps `tenantId` onto the right part of a Prisma
+// query's args for tenant isolation. Extracted so the security-critical logic
+// can be unit-tested without a live database. Returns a new object; the input
+// args are never mutated.
+export const applyTenantScope = (
+  operation: string,
+  args: unknown,
+  tenantId: string,
+): Record<string, unknown> => {
+  const next = { ...(args as Record<string, unknown>) }
+
+  if (WHERE_SCOPED_OPERATIONS.has(operation)) {
+    next.where = { ...(next.where as object), tenantId }
+  } else if (operation === 'create') {
+    next.data = { ...(next.data as object), tenantId }
+  } else if (operation === 'createMany') {
+    const data = next.data
+    if (Array.isArray(data)) {
+      next.data = data.map((item: object) => ({ ...item, tenantId }))
+    }
+  }
+
+  // upsert also needs tenantId on the create branch (where is handled above).
+  if (operation === 'upsert') {
+    next.create = { ...(next.create as object), tenantId }
+  }
+
+  return next
+}
 
 // Cache extended clients per tenant to avoid creating new instances on every request
 const tenantPrismaCache = new Map<string, PrismaClient>()
@@ -34,44 +84,11 @@ const createTenantPrisma = (tenantId: string): PrismaClient => {
   const tenantPrisma = prisma.$extends({
     query: {
       $allOperations({ model, operation, args, query }) {
-        if (!model || !TENANT_ISOLATED_MODELS.has(model)) {
+        if (!isTenantIsolatedModel(model)) {
           return query(args)
         }
 
-        const argsWithTenant = { ...(args as Record<string, unknown>) }
-
-        switch (operation) {
-          case 'findMany':
-          case 'findFirst':
-          case 'findUnique':
-          case 'findFirstOrThrow':
-          case 'findUniqueOrThrow':
-          case 'count':
-          case 'aggregate':
-          case 'groupBy':
-          case 'deleteMany':
-          case 'updateMany':
-          case 'update':
-          case 'delete':
-          case 'upsert':
-            argsWithTenant.where = { ...(argsWithTenant.where as object), tenantId }
-            break
-          case 'create':
-            argsWithTenant.data = { ...(argsWithTenant.data as object), tenantId }
-            break
-          case 'createMany':
-            const data = argsWithTenant.data
-            if (Array.isArray(data)) {
-              argsWithTenant.data = data.map((item: object) => ({ ...item, tenantId }))
-            }
-            break
-        }
-
-        if (operation === 'upsert') {
-          argsWithTenant.create = { ...(argsWithTenant.create as object), tenantId }
-        }
-
-        return query(argsWithTenant)
+        return query(applyTenantScope(operation, args, tenantId))
       },
     },
   }) as unknown as PrismaClient
