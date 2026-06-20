@@ -5,7 +5,7 @@ import type { JwtPayload } from '../types/jwt.js';
 import { verifyJwt } from '../services/jwt.js';
 import { logger } from '../lib/logger.js';
 
-const parseToken = (header?: string | null) => {
+export const parseToken = (header?: string | null) => {
   if (!header) return null;
   const [scheme, token] = header.split(' ');
   if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
